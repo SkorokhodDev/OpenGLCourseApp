@@ -32,6 +32,7 @@
 
 std::vector<Mesh*> MeshList; 
 std::vector<Shader> ShaderList; 
+Shader directionalShadowShader;
 
 DirectionalLight MainLight;
 PointLight PointLights[MAX_POINT_LIGHTS];
@@ -130,6 +131,8 @@ void CreateShaders()
 	Shader* shader1 = new Shader();
 	shader1->CreateFromFiles(vShader, fShader);
 	ShaderList.push_back(*shader1);
+
+	directionalShadowShader = Shader();
 }
 
 int main()

@@ -7,6 +7,9 @@
 
 #include "GL/glew.h"
 
+#include "glm/gtc/type_ptr.hpp"
+#include "glm/glm.hpp"
+
 #include "../Lighting/DirectionalLight.h"
 #include "../Lighting/PointLight.h"
 #include "../Lighting/SpotLight.h"
@@ -43,7 +46,10 @@ public:
 	void SetDirectionalLight(DirectionalLight* DirLight);
 	void SetPointLights(PointLight* PointLight, unsigned int LightCount);
 	void SetSpotLights(SpotLight* PointLight, unsigned int LightCount);
-
+	void SetTexutre(GLuint textureUnit);
+	void SetDirectionalShadowMap(GLuint textureUnit);
+	void SetDirectionalLightTransform(glm::mat4* lTransform);
+	
 	void UseShader();
 	void ClearShader();
 
@@ -54,7 +60,8 @@ private:
 
 	///////// Locations of uniform variables
 	GLuint ShaderID, uniformProjection, uniformModel, uniformView, // Based values
-		uniformSpecularIntensity, uniformShininess, uniformEyePosition; // Materials
+		uniformSpecularIntensity, uniformShininess, uniformEyePosition, uniformTexture, // Materials
+		uniformDirectionalLightTransform, uniformDirectionalShadowMap;
 
 	struct { // Light values
 		GLuint uniformAmbientColour;

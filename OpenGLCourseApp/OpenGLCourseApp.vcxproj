@@ -143,6 +143,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Source\Lighting\Shadows\ShadowMap.cpp" />
     <ClCompile Include="Source\Rendering\Model.cpp" />
     <ClCompile Include="Source\Lighting\PointLight.cpp" />
     <ClCompile Include="Source\Lighting\DirectionalLight.cpp" />
@@ -157,6 +158,7 @@
     <ClCompile Include="Source\Lighting\SpotLight.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\Lighting\Shadows\ShadowMap.h" />
     <ClInclude Include="Source\Rendering\Model.h" />
     <ClInclude Include="Source\CommonValues.h" />
     <ClInclude Include="Source\Lighting\PointLight.h" />
@@ -172,6 +174,8 @@
     <ClInclude Include="Source\Rendering\Texture.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Source\Shaders\DirectionalShadowMapFragmentShader.glsl" />
+    <None Include="Source\Shaders\DirectionalShadowMapVertexShader.glsl" />
     <None Include="Source\Shaders\FragmentShader.glsl" />
     <None Include="Source\Shaders\VertexShader.glsl" />
   </ItemGroup>
