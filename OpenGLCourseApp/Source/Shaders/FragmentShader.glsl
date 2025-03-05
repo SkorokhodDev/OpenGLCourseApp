@@ -59,15 +59,34 @@ float CalcDirectionalShadowFactor(DirectionalLightData light)
 	vec3 projCoords = DirectionalLightSpacePos.xyz / DirectionalLightSpacePos.w; // now coordnates would be between 1 and -1
 	projCoords = (projCoords * 0.5) + 0.5; // normalize into 0-1
 	
-	float closestDepth = texture(directionalShadowMap, projCoords.xy).r; // left, right, up and down
+	//float closestDepth = texture(directionalShadowMap, projCoords.xy).r; // left, right, up and down
 	float currentDepth = projCoords.z; // how far it is
+
+	vec3 normal = normalize(Normal);
+	vec3 lightDir = normalize(light.Direction);
+
+	float bias = max(0.05f * (1 - dot(normal, lightDir)), 0.005);
+
+	float shadow = 0.0;
+
+	vec2 texelSize = 1.0 / textureSize(directionalShadowMap, 0);
+	for(int x = -1; x <= 1; x++)
+	{
+		for(int y = -1; y <= 1; y++)
+		{
+			// pcfDepth =  closest value
+			float pcfDepth = texture(directionalShadowMap, projCoords.xy + vec2(x,y) * texelSize).r;
+			shadow += (currentDepth - bias) > pcfDepth ? 1.0 : 0.0;
+		}
+	}
+	shadow /= 9.0;
+
+	//float shadow = (currentDepth - bias) > closestDepth ? 1.0 : 0.0;
 	
-	float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
-	
-	//if(projCoords.z > 1.0)
-	//{
-	//	shadow = 0.0;
-	//}
+	if(projCoords.z > 1.0)
+	{
+		shadow = 0.0;
+	}
 
 	return shadow;
 }
@@ -99,7 +118,7 @@ vec4 CalcDirectionalLight()
 	float shadowFactor = CalcDirectionalShadowFactor(DirectionalLight);
 	return CalcLightByDirection(DirectionalLight.Base, DirectionalLight.Direction, shadowFactor);
 }
-
+ 
 vec4 CaclSinglePointLight(PointLightData PointLight) 
 {
 	vec3 direction = FragPos - PointLight.Position;
