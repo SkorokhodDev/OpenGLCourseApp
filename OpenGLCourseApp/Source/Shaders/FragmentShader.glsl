@@ -63,6 +63,12 @@ float CalcDirectionalShadowFactor(DirectionalLightData light)
 	float currentDepth = projCoords.z; // how far it is
 	
 	float shadow = currentDepth > closestDepth ? 1.0 : 0.0;
+	
+	//if(projCoords.z > 1.0)
+	//{
+	//	shadow = 0.0;
+	//}
+
 	return shadow;
 }
 			
@@ -71,7 +77,7 @@ vec4 CalcLightByDirection(LightBaseData BaseLight, vec3 Direction, float shadowF
 	vec4 AmbientColour = vec4(BaseLight.Colour, 1.0f) * BaseLight.AmbientIntensity;
 
 	float DiffuseFactor = max(dot(normalize(Normal), normalize(Direction)), 0.0f); // if DiffFactor < 0, we set it to zero
-	vec4 DiffuseColour = vec4(BaseLight.Colour, 1.0f) * BaseLight.DiffuseIntensity * DiffuseFactor;
+	vec4 DiffuseColour = vec4(BaseLight.Colour * BaseLight.DiffuseIntensity * DiffuseFactor, 1.0f);
 	
 	vec4 SpecularColor = vec4(0,0,0,0);
 

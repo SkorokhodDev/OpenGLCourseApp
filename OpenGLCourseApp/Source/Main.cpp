@@ -34,9 +34,18 @@ std::vector<Mesh*> MeshList;
 std::vector<Shader> ShaderList; 
 Shader directionalShadowShader;
 
+//Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 2.0f, 0.2f);
+Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -60.0f, 0.0f, 5.0f, 0.5f);
+
 DirectionalLight MainLight;
 PointLight PointLights[MAX_POINT_LIGHTS];
 SpotLight SpotLights[MAX_SPOT_LIGHTS];
+unsigned int PointLightCount = 0;
+unsigned int SpotLightCount = 0;
+
+// Locations of our uniforms
+GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0;
+GLuint unifromSpecularIntensity = 0, uniformShininess = 0, uniformEyePosition = 0;
 
 // Window Dimensions
 constexpr float toRadians = static_cast<float>(M_PI / 180.0f);
@@ -132,36 +141,147 @@ void CreateShaders()
 	shader1->CreateFromFiles(vShader, fShader);
 	ShaderList.push_back(*shader1);
 
-	directionalShadowShader = Shader();
+	directionalShadowShader.CreateFromFiles("Source/Shaders/DirectionalShadowMapVertexShader.glsl", "Source/Shaders/DirectionalShadowMapFragmentShader.glsl");
+}
+
+
+///////////////////// Load Texture 
+Texture Tex_Brick;
+Texture Tex_Dirt;
+Texture Tex_Plain;
+
+//////////////////// Materials
+Material ShinyMaterial;
+Material DullMaterial;
+
+////////////////////// Models
+Model Xwing;
+
+Model BlackHawk;
+
+void RenderScene()
+{
+	glm::mat4 model(1.0f);
+
+	model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.5f));
+	model = glm::rotate(model, 15 * toRadians, glm::vec3(1.0f, 1.0f, 1.0f));
+	//model = glm::scale(model, glm::vec3(0.4f, 0.4f, 1.0f));
+	// attach our projection matrix to shader uniform variable
+	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+	Tex_Brick.UseTexture();
+	ShinyMaterial.UseMaterial(unifromSpecularIntensity, uniformShininess); // set Material class data to the uniformValues
+	MeshList[0]->RenderMesh(); // render, where we actually calling shaders
+
+	/////////////// FLooor
+	model = glm::mat4(1.0f);
+	model = glm::translate(model, glm::vec3(0.0f, -2.0f, 0.0f));
+	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+	Tex_Dirt.UseTexture();
+	DullMaterial.UseMaterial(unifromSpecularIntensity, uniformShininess);
+	MeshList[1]->RenderMesh();
+
+	//////////////////// Xwing
+	model = glm::mat4(1.0f);
+	model = glm::translate(model, glm::vec3(-5.0f, 0.0f, 15.0f));
+	model = glm::scale(model, glm::vec3(0.006f, 0.006f, 0.006f));
+	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+	//Tex_Dirt.UseTexture();
+	ShinyMaterial.UseMaterial(unifromSpecularIntensity, uniformShininess);
+	Xwing.RenderModel();
+}
+
+void DirectinalShadowMapPass(DirectionalLight* light) //upgrade to several lights if i have more then one dir light
+{
+	directionalShadowShader.UseShader();
+
+	// frame buffer is the same size as viewport
+	glViewport(0, 0, light->GetShadowMap()->GetShadowWidth(), light->GetShadowMap()->GetShadowHeight());
+
+	light->GetShadowMap()->Write();
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	uniformModel = directionalShadowShader.GetModelLocation();
+	glm::mat4 lightTransform = light->CalculateLightTransform();
+	directionalShadowShader.SetDirectionalLightTransform(&lightTransform);
+
+	RenderScene();
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
+{
+	// our rendering
+	ShaderList[0].UseShader();
+	uniformModel = ShaderList[0].GetModelLocation();
+	uniformProjection = ShaderList[0].GetProjectionLocation();
+	uniformView = ShaderList[0].GetViewLocation();
+	uniformEyePosition = ShaderList[0].GetEyePositionLocation();
+	unifromSpecularIntensity = ShaderList[0].GetSpecularIntesityLocation();
+	uniformShininess = ShaderList[0].GetShininessLocation();
+
+	glViewport(0, 0, 1366, 768);
+
+	// Clear window 
+	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
+	glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(viewMatrix));
+	glUniform3f(uniformEyePosition, camera.GetCameraPosition().x, camera.GetCameraPosition().y, camera.GetCameraPosition().z);
+
+	ShaderList[0].SetDirectionalLight(&MainLight);
+	ShaderList[0].SetPointLights(PointLights, PointLightCount);
+	ShaderList[0].SetSpotLights(SpotLights, SpotLightCount);
+	glm::mat4 lightTransform = MainLight.CalculateLightTransform();
+	ShaderList[0].SetDirectionalLightTransform(&lightTransform);
+
+	MainLight.GetShadowMap()->Read(GL_TEXTURE1);
+	ShaderList[0].SetTexutre(0);
+	ShaderList[0].SetDirectionalShadowMap(1);
+
+	glm::vec3 LowerLight = camera.GetCameraPosition();
+	LowerLight.y -= 0.01f; // -=0.3f
+	//SpotLights[0].SetFlash(LowerLight, camera.GetCameraDirection());
+
+	RenderScene();
 }
 
 int main()
 {
-	Window* MainWindow = new Window(1300, 700);
+	Window* MainWindow = new Window(1366, 768);
 	MainWindow->Initialize();
 
 	CreateShaders();
 	CreateObjects();
 
-	Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 2.0f, 0.2f);
-
 	///////////////////// Load Texture 
-	Texture Tex_Brick = Texture("Resources/Textures/brick.png");
+	Tex_Brick = Texture("Resources/Textures/brick.png");
 	Tex_Brick.LoadTexture(true);
-	Texture Tex_Dirt = Texture("Resources/Textures/dirt.png");
+	Tex_Dirt = Texture("Resources/Textures/dirt.png");
 	Tex_Dirt.LoadTexture(true);
-	Texture Tex_Plain = Texture("Resources/Textures/plain.png");
+	Tex_Plain = Texture("Resources/Textures/plain.png");
 	Tex_Plain.LoadTexture(true);
-	
+
 	//////////////////// Materials
-	Material ShinyMaterial = Material(1.0f, 32);
-	Material DullMaterial = Material(0.3f, 4);
+	ShinyMaterial = Material(1.0f, 32);
+	DullMaterial = Material(0.3f, 4);
+
+	////////////////////// Models
+	Xwing = Model();
+	Xwing.LoadModel("Resources/Models/x-wing.obj");
+
+	BlackHawk = Model();
+
 
 	///////////////////// L I G H T I N G
 	//Initialize DirectionalLight
-	MainLight = DirectionalLight(1.0f, 1.0f, 1.0f, 0.1f, 0.1f, 0.0f, 0.0f, 0.0f);
+	MainLight = DirectionalLight(1.0f, 1.0f, 1.0f, 
+		0.9f, 0.6f,
+		0.0f, -15.0f, -10.0f, 
+		1024, 1024);
+
 	// Initialize PointLights
-	unsigned int PointLightCount = 0;
 	PointLights[0] = PointLight(0.0f, 1.0f, 0.0f,
 								0.0f, 0.1f,
 								-4.0f, 0.0f, 0.0f,
@@ -174,7 +294,7 @@ int main()
 	PointLightCount++;
 	
 	// Initialize SpotLights
-	unsigned int SpotLightCount = 0;
+
 	SpotLights[0] = SpotLight(1.0f, 1.0f, 1.0f,
 							0.1f, 1.0f,
 							0.0f, 0.0f, 0.0f,
@@ -188,15 +308,7 @@ int main()
 								1.0f, 0.0f, 0.0f, 20.0f);
 	SpotLightCount++;
 
-	////////////////////// Models
-	Model Xwing= Model();
-	Xwing.LoadModel("Resources/Models/x-wing.obj");
 
-	Model BlackHawk = Model();
-
-	// Locations of our uniforms
-	GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0;
-	GLuint unifromSpecularIntensity = 0, uniformShininess = 0, uniformEyePosition = 0;
 
 	glm::mat4 projection = glm::perspective(45.0f, MainWindow->GetBufferWidth() / MainWindow->GetBufferHeight(), 0.1f, 100.0f);
 
@@ -211,7 +323,6 @@ int main()
 		DeltaTime = CurrentTime - LastTime; // (CurrentTimme - LastTime) * 1000 / STD_GetPerfomanceFrequency(); // 1000* to convert into seconds
 		LastTime = CurrentTime;
 
-
 		// Get + Handle user input events (resize and etc)
 		glfwPollEvents();
 
@@ -219,64 +330,14 @@ int main()
 		camera.KeyControl(MainWindow->GetKeys(), DeltaTime);
 		camera.MouseControl(MainWindow->GetXChange(), MainWindow->GetYChange());
 
-		// Clear window 
-		glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		
-		// our rendering
-		ShaderList[0].UseShader();
-		uniformModel = ShaderList[0].GetModelLocation();
-		uniformProjection = ShaderList[0].GetProjectionLocation();
-		uniformView = ShaderList[0].GetViewLocation();
-		uniformEyePosition = ShaderList[0].GetEyePositionLocation();
-		unifromSpecularIntensity = ShaderList[0].GetSpecularIntesityLocation();
-		uniformShininess = ShaderList[0].GetShininessLocation();
+		// This will render the screnn, but not to the viewport.
+		// It will render it to a frame buffer, which will then save it to a texture.
+		// Then this texture will be used in next pass;
+		DirectinalShadowMapPass(&MainLight);
 
-		glm::vec3 LowerLight = camera.GetCameraPosition();
-		LowerLight.y -= 0.01f;
-		SpotLights[0].SetFlash(LowerLight, camera.GetCameraDirection());
-
-		ShaderList[0].SetDirectionalLight(&MainLight);
-		ShaderList[0].SetPointLights(PointLights, PointLightCount);
-		ShaderList[0].SetSpotLights(SpotLights, SpotLightCount);
-
-
-		glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
-		glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(camera.CalculateViewMatrix()));
-		glUniform3f(uniformEyePosition, camera.GetCameraPosition().x, camera.GetCameraPosition().y, camera.GetCameraPosition().z);
-
-		/////////////////////////////////// MeshList[0]
-		glm::mat4 model(1.0f);
-
-		model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.5f));
-		model = glm::rotate(model, 15 * toRadians, glm::vec3(1.0f, 1.0f, 1.0f));
-		//model = glm::scale(model, glm::vec3(0.4f, 0.4f, 1.0f));
-		// attach our projection matrix to shader uniform variable
-		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-		Tex_Brick.UseTexture();
-		ShinyMaterial.UseMaterial(unifromSpecularIntensity, uniformShininess); // set Material class data to the uniformValues
-		MeshList[0]->RenderMesh(); // render, where we actually calling shaders
-
-		/////////////// FLooor
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(0.0f, -2.0f, 0.0f));
-		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-		Tex_Dirt.UseTexture();
-		DullMaterial.UseMaterial(unifromSpecularIntensity, uniformShininess); 
-		MeshList[1]->RenderMesh(); 
-
-		//////////////////// Xwing
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(-5.0f, 0.0f, 15.0f));
-		model = glm::scale(model, glm::vec3(0.006f, 0.006f, 0.006f));
-		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-		//Tex_Dirt.UseTexture();
-		ShinyMaterial.UseMaterial(unifromSpecularIntensity, uniformShininess);
-		Xwing.RenderModel();
-
+		RenderPass(projection, camera.CalculateViewMatrix());
 
 		glUseProgram(0);
-		///////////////////////////////////
 
 		MainWindow->SpawBuffers();
 	}

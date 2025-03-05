@@ -200,6 +200,10 @@ void Shader::CompileShader(const char* VertexCode, const char* FragmentCode)
 	uniformShininess = glGetUniformLocation(ShaderID, "Material.Shininess");
 	uniformSpecularIntensity = glGetUniformLocation(ShaderID, "Material.SpecularIntensity");
 
+	uniformDirectionalLightTransform = glGetUniformLocation(ShaderID, "directionalLightTransform");
+	uniformTexture = glGetUniformLocation(ShaderID, "TheTexture");
+	uniformDirectionalShadowMap = glGetUniformLocation(ShaderID, "directionalShadowMap");
+
 	// Point light setup
 	uniformPointLightCount = glGetUniformLocation(ShaderID, "PointLightCount");
 	for (size_t i = 0; i < MAX_POINT_LIGHTS; i++)
@@ -262,10 +266,6 @@ void Shader::CompileShader(const char* VertexCode, const char* FragmentCode)
 		snprintf(LocBuffer, sizeof(LocBuffer), "SpotLights[%d].Edge", i);
 		uniformSpotLights[i].uniformEdge = glGetUniformLocation(ShaderID, LocBuffer);
 	}
-
-	uniformTexture = glGetUniformLocation(ShaderID, "directionalLightTransform");
-	uniformTexture = glGetUniformLocation(ShaderID, "TheTexture");
-	uniformDirectionalShadowMap = glGetUniformLocation(ShaderID, "directionalShadowMap");
 }
 
 // Creates our shaders

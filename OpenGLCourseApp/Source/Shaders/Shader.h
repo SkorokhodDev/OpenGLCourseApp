@@ -46,10 +46,11 @@ public:
 	void SetDirectionalLight(DirectionalLight* DirLight);
 	void SetPointLights(PointLight* PointLight, unsigned int LightCount);
 	void SetSpotLights(SpotLight* PointLight, unsigned int LightCount);
-	void SetTexutre(GLuint textureUnit);
-	void SetDirectionalShadowMap(GLuint textureUnit);
-	void SetDirectionalLightTransform(glm::mat4* lTransform);
 	
+	void SetTexutre(GLuint textureUnit);
+	void SetDirectionalLightTransform(glm::mat4* lTransform);
+	void SetDirectionalShadowMap(GLuint textureUnit);
+
 	void UseShader();
 	void ClearShader();
 
@@ -60,8 +61,8 @@ private:
 
 	///////// Locations of uniform variables
 	GLuint ShaderID, uniformProjection, uniformModel, uniformView, // Based values
-		uniformSpecularIntensity, uniformShininess, uniformEyePosition, uniformTexture, // Materials
-		uniformDirectionalLightTransform, uniformDirectionalShadowMap;
+		uniformSpecularIntensity, uniformShininess, uniformEyePosition,  // Materials
+		uniformTexture, uniformDirectionalLightTransform, uniformDirectionalShadowMap;
 
 	struct { // Light values
 		GLuint uniformAmbientColour;
