@@ -33,6 +33,7 @@
 std::vector<Mesh*> MeshList; 
 std::vector<Shader> ShaderList; 
 Shader directionalShadowShader;
+Shader omniShadowShader;
 
 //Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 2.0f, 0.2f);
 Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -60.0f, 0.0f, 5.0f, 0.5f);
@@ -45,7 +46,9 @@ unsigned int SpotLightCount = 0;
 
 // Locations of our uniforms
 GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0;
-GLuint unifromSpecularIntensity = 0, uniformShininess = 0, uniformEyePosition = 0;
+GLuint uniformSpecularIntensity = 0, uniformShininess = 0, uniformEyePosition = 0;
+GLuint uniformOmniLightPos = 0, uniformFarPlane = 0;
+GLuint uniformDirectionalLightTransform = 0; // TODO: FIX THIS, no use
 
 // Window Dimensions
 constexpr float toRadians = static_cast<float>(M_PI / 180.0f);
@@ -142,6 +145,7 @@ void CreateShaders()
 	ShaderList.push_back(*shader1);
 
 	directionalShadowShader.CreateFromFiles("Source/Shaders/DirectionalShadowMapVertexShader.glsl", "Source/Shaders/DirectionalShadowMapFragmentShader.glsl");
+	omniShadowShader.CreateFromFiles("Source/Shaders/OmniShadowMapVert.glsl", "Source/Shaders/OmniShadowMapGeom.glsl", "Source/Shaders/OmniShadowMapFrag.glsl");
 }
 
 
@@ -157,7 +161,8 @@ Material DullMaterial;
 ////////////////////// Models
 Model Xwing;
 
-Model BlackHawk;
+Model Helicopter;
+GLfloat HelicopterAngle = 0.0f;
 
 void RenderScene()
 {
@@ -169,7 +174,7 @@ void RenderScene()
 	// attach our projection matrix to shader uniform variable
 	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 	Tex_Brick.UseTexture();
-	ShinyMaterial.UseMaterial(unifromSpecularIntensity, uniformShininess); // set Material class data to the uniformValues
+	ShinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess); // set Material class data to the uniformValues
 	MeshList[0]->RenderMesh(); // render, where we actually calling shaders
 
 	/////////////// FLooor
@@ -177,7 +182,7 @@ void RenderScene()
 	model = glm::translate(model, glm::vec3(0.0f, -2.0f, 0.0f));
 	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 	Tex_Dirt.UseTexture();
-	DullMaterial.UseMaterial(unifromSpecularIntensity, uniformShininess);
+	DullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 	MeshList[1]->RenderMesh();
 
 	//////////////////// Xwing
@@ -186,8 +191,26 @@ void RenderScene()
 	model = glm::scale(model, glm::vec3(0.006f, 0.006f, 0.006f));
 	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 	//Tex_Dirt.UseTexture();
-	ShinyMaterial.UseMaterial(unifromSpecularIntensity, uniformShininess);
+	ShinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 	Xwing.RenderModel();
+	
+	/////////////////// Helicopter
+	HelicopterAngle += 0.1f;
+	if (HelicopterAngle > 360.f)
+	{
+		HelicopterAngle = 0.1f;
+	}
+	
+	model = glm::mat4(1.0f);
+	model = glm::rotate(model, -HelicopterAngle * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
+	model = glm::translate(model, glm::vec3(-8.0f, 2.0f, 0.0f));
+	model = glm::rotate(model, -20.f * toRadians, glm::vec3(0.0,0.0,1.0f));	// rotate around z
+	model = glm::rotate(model, -90.f * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
+	model = glm::scale(model, glm::vec3(1, 1, 1)); // ~0.4
+	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+	//Tex_Dirt.UseTexture();
+	ShinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+	Helicopter.RenderModel();
 }
 
 void DirectinalShadowMapPass(DirectionalLight* light) //upgrade to several lights if i have more then one dir light
@@ -209,6 +232,30 @@ void DirectinalShadowMapPass(DirectionalLight* light) //upgrade to several light
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
+void OmniShadowMapPass(PointLight* pLight)
+{
+	omniShadowShader.UseShader();
+
+	// frame buffer is the same size as viewport
+	glViewport(0, 0, pLight->GetShadowMap()->GetShadowWidth(), pLight->GetShadowMap()->GetShadowHeight());
+
+	pLight->GetShadowMap()->Write();
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	uniformModel = omniShadowShader.GetModelLocation();
+	uniformOmniLightPos = omniShadowShader.GetOmniLightPosLocation();
+	uniformFarPlane = omniShadowShader.GetFarPlaneLocation();
+
+	glUniform3f(uniformOmniLightPos, pLight->GetPosition().x, pLight->GetPosition().y, pLight->GetPosition().z);
+	glUniform1f(uniformFarPlane, pLight->GetFarPlane());
+	omniShadowShader.SetLightMatrices(pLight->CalculateLightTransform());
+
+	RenderScene();
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+
 void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
 {
 	// our rendering
@@ -217,7 +264,7 @@ void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
 	uniformProjection = ShaderList[0].GetProjectionLocation();
 	uniformView = ShaderList[0].GetViewLocation();
 	uniformEyePosition = ShaderList[0].GetEyePositionLocation();
-	unifromSpecularIntensity = ShaderList[0].GetSpecularIntesityLocation();
+	uniformSpecularIntensity = ShaderList[0].GetSpecularIntesityLocation();
 	uniformShininess = ShaderList[0].GetShininessLocation();
 
 	glViewport(0, 0, 1366, 768);
@@ -242,10 +289,11 @@ void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
 
 	glm::vec3 LowerLight = camera.GetCameraPosition();
 	LowerLight.y -= 0.01f; // -=0.3f
-	//SpotLights[0].SetFlash(LowerLight, camera.GetCameraDirection());
+	SpotLights[0].SetFlash(LowerLight, camera.GetCameraDirection());
 
 	RenderScene();
 }
+
 
 int main()
 {
@@ -271,13 +319,14 @@ int main()
 	Xwing = Model();
 	Xwing.LoadModel("Resources/Models/x-wing.obj");
 
-	BlackHawk = Model();
+	Helicopter = Model();
+	Helicopter.LoadModel("Resources/Models/cube.obj");
 
 
 	///////////////////// L I G H T I N G
 	//Initialize DirectionalLight
 	MainLight = DirectionalLight(1.0f, 1.0f, 1.0f, 
-		0.9f, 0.6f,
+		0.3f, 0.6f,
 		0.0f, -15.0f, -10.0f, 
 		2048, 2048);
 
@@ -285,12 +334,14 @@ int main()
 	PointLights[0] = PointLight(0.0f, 1.0f, 0.0f,
 								0.0f, 0.1f,
 								-4.0f, 0.0f, 0.0f,
-								0.3f, 0.1f, 0.1f);
+								0.3f, 0.1f, 0.1f,
+								1024, 1024, 0.01f, 100.0f);
 	PointLightCount++;
 	PointLights[1] = PointLight(0.0f, 0.0f, 1.0f,
-								0.0f, 0.1f,
-								0.0f, 0.0f, 0.0f,
-								0.3f, 0.2f, 0.1f);
+		0.0f, 0.1f,
+		0.0f, 0.0f, 0.0f,
+		0.3f, 0.2f, 0.1f,
+		1024, 1024, 0.01f, 100.0f);
 	PointLightCount++;
 	
 	// Initialize SpotLights
@@ -299,18 +350,20 @@ int main()
 							0.1f, 1.0f,
 							0.0f, 0.0f, 0.0f,
 							0.0f, -1.0f, 0.0f,
-							1.0f, 0.0f, 0.0f, 20.0f);
+							1.0f, 0.0f, 0.0f, 20.0f,
+							1024, 1024, 0.01f, 100.0f);
 	SpotLightCount++;
 	SpotLights[1] = SpotLight(1.0f, 0.0f, 1.0f,
 								1.0f, 3.0f,
 								3.0f, 0.0f, 0.0f,
 								-100.0f, -1.0f, 0.0f,
-								1.0f, 0.0f, 0.0f, 20.0f);
+								1.0f, 0.0f, 0.0f, 20.0f,
+								1024, 1024, 0.01f, 100.0f);
 	SpotLightCount++;
 
 
 
-	glm::mat4 projection = glm::perspective(45.0f, MainWindow->GetBufferWidth() / MainWindow->GetBufferHeight(), 0.1f, 100.0f);
+	glm::mat4 projection = glm::perspective(glm::radians(60.0f), MainWindow->GetBufferWidth() / MainWindow->GetBufferHeight(), 0.1f, 100.0f);
 
 	GLfloat DeltaTime = 0.0f;
 	GLfloat LastTime = 0.0f;
@@ -334,6 +387,14 @@ int main()
 		// It will render it to a frame buffer, which will then save it to a texture.
 		// Then this texture will be used in next pass;
 		DirectinalShadowMapPass(&MainLight);
+		for (size_t i = 0; i < PointLightCount; i++)
+		{
+			OmniShadowMapPass(&PointLights[i]);
+		}
+		for (size_t i = 0; i < SpotLightCount; i++)
+		{
+			OmniShadowMapPass(&SpotLights[i]);
+		}
 
 		RenderPass(projection, camera.CalculateViewMatrix());
 

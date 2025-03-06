@@ -143,6 +143,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Source\Lighting\Shadows\OmniShadowMap.cpp" />
     <ClCompile Include="Source\Lighting\Shadows\ShadowMap.cpp" />
     <ClCompile Include="Source\Rendering\Model.cpp" />
     <ClCompile Include="Source\Lighting\PointLight.cpp" />
@@ -158,6 +159,7 @@
     <ClCompile Include="Source\Lighting\SpotLight.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\Lighting\Shadows\OmniShadowMap.h" />
     <ClInclude Include="Source\Lighting\Shadows\ShadowMap.h" />
     <ClInclude Include="Source\Rendering\Model.h" />
     <ClInclude Include="Source\CommonValues.h" />
@@ -177,6 +179,9 @@
     <None Include="Source\Shaders\DirectionalShadowMapFragmentShader.glsl" />
     <None Include="Source\Shaders\DirectionalShadowMapVertexShader.glsl" />
     <None Include="Source\Shaders\FragmentShader.glsl" />
+    <None Include="Source\Shaders\OmniShadowMapFrag.glsl" />
+    <None Include="Source\Shaders\OmniShadowMapGeom.glsl" />
+    <None Include="Source\Shaders\OmniShadowMapVert.glsl" />
     <None Include="Source\Shaders\VertexShader.glsl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

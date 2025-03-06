@@ -13,7 +13,7 @@ void Model::LoadModel(const std::string FileName)
 		| aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices);
 
 	if (!Scene) {
-		printf("Model failed to load: %s", Importer.GetErrorString());
+		printf("Model failed to load: %s, %s", Importer.GetErrorString(), FileName.c_str());
 		return;
 	}
 
