@@ -29,6 +29,21 @@
 
 #include "CommonValues.h"
 
+void CheckOpenGLError(const char* stmt, const char* fname, int line)
+{
+    GLenum err = glGetError();
+    if (err != GL_NO_ERROR)
+    {
+        printf("OpenGL error %08x, at %s:%i - for %s\n", err, fname, line, stmt);
+        //abort();
+    }
+}
+
+#define GL_CHECK(stmt) do { \
+        stmt; \
+        CheckOpenGLError(#stmt, __FILE__, __LINE__); \
+    } while (0)
+
 
 std::vector<Mesh*> MeshList; 
 std::vector<Shader> ShaderList; 
@@ -227,6 +242,8 @@ void DirectinalShadowMapPass(DirectionalLight* light) //upgrade to several light
 	glm::mat4 lightTransform = light->CalculateLightTransform();
 	directionalShadowShader.SetDirectionalLightTransform(&lightTransform);
 
+	directionalShadowShader.Validate();
+
 	RenderScene();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -249,6 +266,8 @@ void OmniShadowMapPass(PointLight* pLight)
 	glUniform3f(uniformOmniLightPos, pLight->GetPosition().x, pLight->GetPosition().y, pLight->GetPosition().z);
 	glUniform1f(uniformFarPlane, pLight->GetFarPlane());
 	omniShadowShader.SetLightMatrices(pLight->CalculateLightTransform());
+
+	omniShadowShader.Validate();
 
 	RenderScene();
 
@@ -278,18 +297,20 @@ void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
 	glUniform3f(uniformEyePosition, camera.GetCameraPosition().x, camera.GetCameraPosition().y, camera.GetCameraPosition().z);
 
 	ShaderList[0].SetDirectionalLight(&MainLight);
-	ShaderList[0].SetPointLights(PointLights, PointLightCount);
-	ShaderList[0].SetSpotLights(SpotLights, SpotLightCount);
+	ShaderList[0].SetPointLights(PointLights, PointLightCount, 3, 0);
+	ShaderList[0].SetSpotLights(SpotLights, SpotLightCount, 3 + PointLightCount, PointLightCount); // set offset
 	glm::mat4 lightTransform = MainLight.CalculateLightTransform();
 	ShaderList[0].SetDirectionalLightTransform(&lightTransform);
 
-	MainLight.GetShadowMap()->Read(GL_TEXTURE1);
-	ShaderList[0].SetTexutre(0);
-	ShaderList[0].SetDirectionalShadowMap(1);
+	MainLight.GetShadowMap()->Read(GL_TEXTURE2);
+	ShaderList[0].SetTexutre(1);
+	ShaderList[0].SetDirectionalShadowMap(2);
 
 	glm::vec3 LowerLight = camera.GetCameraPosition();
-	LowerLight.y -= 0.01f; // -=0.3f
+	LowerLight.y -= 0.3f; // -=0.3f
 	SpotLights[0].SetFlash(LowerLight, camera.GetCameraDirection());
+
+	ShaderList[0].Validate();
 
 	RenderScene();
 }
@@ -326,28 +347,27 @@ int main()
 	///////////////////// L I G H T I N G
 	//Initialize DirectionalLight
 	MainLight = DirectionalLight(1.0f, 1.0f, 1.0f, 
-		0.3f, 0.6f,
+		0.1f, 0.3f, // 0,3 0.6
 		0.0f, -15.0f, -10.0f, 
 		2048, 2048);
 
 	// Initialize PointLights
-	PointLights[0] = PointLight(0.0f, 1.0f, 0.0f,
-								0.0f, 0.1f,
-								-4.0f, 0.0f, 0.0f,
-								0.3f, 0.1f, 0.1f,
+	PointLights[0] = PointLight(0.0f, 0.0f, 1.0f,
+								0.2f, 1.0f,
+								1.0f, 2.0f, 0.0f,
+								1.0f, 2.0f, 0.01f,
 								1024, 1024, 0.01f, 100.0f);
 	PointLightCount++;
-	PointLights[1] = PointLight(0.0f, 0.0f, 1.0f,
-		0.0f, 0.1f,
-		0.0f, 0.0f, 0.0f,
-		0.3f, 0.2f, 0.1f,
-		1024, 1024, 0.01f, 100.0f);
+	PointLights[1] = PointLight(0.0f, 1.0f, 0.0f,
+								0.2f, 1.0f,
+								-4.0f, 3.0f, 0.0f,
+								0.3f, 0.1f, 0.01f,
+								1024, 1024, 0.01f, 100.0f);
 	PointLightCount++;
 	
 	// Initialize SpotLights
-
-	SpotLights[0] = SpotLight(1.0f, 1.0f, 1.0f,
-							0.1f, 1.0f,
+	SpotLights[0] = SpotLight(1.0f, 1.0f, 1.0f,    // Flash light
+							1.0f, 1.0f,
 							0.0f, 0.0f, 0.0f,
 							0.0f, -1.0f, 0.0f,
 							1.0f, 0.0f, 0.0f, 20.0f,
