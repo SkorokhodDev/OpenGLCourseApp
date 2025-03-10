@@ -160,7 +160,7 @@ void CreateShaders()
 	ShaderList.push_back(*shader1);
 
 	directionalShadowShader = Shader();
-	directionalShadowShader.CreateFromFiles("Source/Shaders/DirectionalShadowMapVertexShader.glsl", "Source/Shaders/DirectionalShadowMapFragmentShader.glsl");
+	directionalShadowShader.CreateFromFiles("Source/Shaders/DirShadowMapVert.glsl", "Source/Shaders/DirShadowMapFrag.glsl");
 
 	omniShadowShader = Shader();
 	omniShadowShader.CreateFromFiles("Source/Shaders/OmniShadowMapVert.glsl", "Source/Shaders/OmniShadowMapGeom.glsl", "Source/Shaders/OmniShadowMapFrag.glsl");
@@ -197,7 +197,7 @@ void RenderScene()
 
 	/////////////// FLooor
 	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(0.0f, -10.0f, 0.0f));
+	model = glm::translate(model, glm::vec3(0.0f, -2.0f, 0.0f));
 	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 	Tex_Dirt.UseTexture();
 	ShinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
@@ -246,6 +246,8 @@ void DirectionalShadowMapPass(DirectionalLight* light) //upgrade to several ligh
 
 	directionalShadowShader.Validate();
 
+
+	GLuint testDebug = glGetUniformLocation(directionalShadowShader.GetShaderID(), "model_test");
 	RenderScene();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -264,6 +266,7 @@ void OmniShadowMapPass(PointLight* pLight)
 	uniformModel = omniShadowShader.GetModelLocation();
 	uniformOmniLightPos = omniShadowShader.GetOmniLightPosLocation();
 	uniformFarPlane = omniShadowShader.GetFarPlaneLocation();
+
 
 	glUniform3f(uniformOmniLightPos, pLight->GetPosition().x, pLight->GetPosition().y, pLight->GetPosition().z);
 	glUniform1f(uniformFarPlane, pLight->GetFarPlane());
@@ -303,6 +306,7 @@ void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
 	ShaderList[0].SetSpotLights(SpotLights, SpotLightCount, 3 + PointLightCount, PointLightCount); // set offset
 	glm::mat4 lightTransform = MainLight.CalculateDirLightTransform();
 	ShaderList[0].SetDirectionalLightTransform(&lightTransform);
+
 
 	MainLight.GetShadowMap()->Read(GL_TEXTURE2);
 
@@ -350,21 +354,21 @@ int main()
 	///////////////////// L I G H T I N G
 	//Initialize DirectionalLight
 	MainLight = DirectionalLight(1.0f, 1.0f, 1.0f, 
-		0.01f, 0.2f, // 0,3 0.6
-		0.0f, -15.0f, -10.0f, 
-		2048, 2048);
+								0.1f, 0.2f, // 0,3 0.6
+								0.0f, -15.0f, -10.0f, 
+								2048, 2048);
 
 	// Initialize PointLights
 	PointLights[0] = PointLight(0.0f, 0.0f, 1.0f, // colour
 								0.2f, 1.0f,
 								1.0f, 2.0f, 0.0f, // pos
-								1.0f, 2.0f, 1.0f,
+								0.3f, 0.01f, 0.01f,
 								1024, 1024, 0.01f, 100.0f);
 	PointLightCount++;
 	PointLights[1] = PointLight(0.0f, 1.0f, 0.0f, // colour
 								0.2f, 1.0f,
-								-4.0f, -8.0f, 0.0f, // pos
-								0.3f, 0.1f, 0.01f,
+								-4.0f, 2.0f, 0.0f, // pos
+								0.3f, 0.01f, 0.01f,
 								1024, 1024, 0.01f, 100.0f);
 	PointLightCount++;
 	

@@ -176,8 +176,8 @@
     <ClInclude Include="Source\Rendering\Texture.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Source\Shaders\DirectionalShadowMapFragmentShader.glsl" />
-    <None Include="Source\Shaders\DirectionalShadowMapVertexShader.glsl" />
+    <None Include="Source\Shaders\DirShadowMapFrag.glsl" />
+    <None Include="Source\Shaders\DirShadowMapVert.glsl" />
     <None Include="Source\Shaders\FragmentShader.glsl" />
     <None Include="Source\Shaders\OmniShadowMapFrag.glsl" />
     <None Include="Source\Shaders\OmniShadowMapGeom.glsl" />

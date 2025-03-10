@@ -9,8 +9,7 @@ Model::Model()
 void Model::LoadModel(const std::string FileName)
 {
 	Assimp::Importer Importer;
-	const aiScene* Scene = Importer.ReadFile(FileName,aiProcess_Triangulate | aiProcess_FlipUVs 
-		| aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices);
+	const aiScene* Scene = Importer.ReadFile(FileName, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenSmoothNormals | aiProcess_JoinIdenticalVertices);
 
 	if (!Scene) {
 		printf("Model failed to load: %s, %s", Importer.GetErrorString(), FileName.c_str());
@@ -20,6 +19,7 @@ void Model::LoadModel(const std::string FileName)
 	LoadNode(Scene->mRootNode, Scene);
 	LoadMaterials(Scene);
 }
+
 
 
 Model::~Model()

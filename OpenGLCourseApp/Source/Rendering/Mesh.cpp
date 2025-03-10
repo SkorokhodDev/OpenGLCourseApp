@@ -9,9 +9,9 @@ Mesh::~Mesh()
 	ClearMesh();
 }
 
-void Mesh::CreateMesh(GLfloat* vertices, unsigned int* indices, unsigned int NumOfVertices, unsigned int NumOfIndices)
+void Mesh::CreateMesh(GLfloat* vertices, unsigned int* indices, unsigned int numOfVertices, unsigned int numOfIndices)
 {
-	IndexCount = NumOfIndices;
+	IndexCount = numOfIndices;
 
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
@@ -19,11 +19,11 @@ void Mesh::CreateMesh(GLfloat* vertices, unsigned int* indices, unsigned int Num
 	glGenBuffers(1, &IBO);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBO);
 	//sizeof(indices) return value of pointr, bec we passing pointer to first element of massive
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0])*IndexCount, indices, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices[0]) * numOfIndices, indices, GL_STATIC_DRAW);
 
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * NumOfVertices, vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices[0]) * numOfVertices, vertices, GL_STATIC_DRAW);
 	
 	// Handle coords
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (sizeof(vertices[0]) * 8), (void*)0);

@@ -31,21 +31,22 @@ public:
 
 	std::string ReadFile(const char* FilePath);
 
-	 GLuint GetProjectionLocation() const;
-	 GLuint GetModelLocation() const;
-	 GLuint GetViewLocation() const;
+	inline GLuint GetShaderID() const { return ShaderID; }
+	GLuint GetProjectionLocation() const;
+	GLuint GetModelLocation() const;
+	GLuint GetViewLocation() const;
 	
-	 GLuint GetAmbientColourLocation() const;
-	 GLuint GetAmbientIntensityLocation() const;
-	 GLuint GetDiffuseIntensityLocation() const;
-	 GLuint GetDirectionLocation();
+	GLuint GetAmbientColourLocation() const;
+	GLuint GetAmbientIntensityLocation() const;
+	GLuint GetDiffuseIntensityLocation() const;
+	GLuint GetDirectionLocation();
 
-	 GLuint GetSpecularIntesityLocation() const;
-	 GLuint GetShininessLocation();
-	 GLuint GetOmniLightPosLocation(); //const { return uniformOmniLightPos; };
-	 inline GLuint GetFarPlaneLocation() const { return uniformFarPlane; };
+	GLuint GetSpecularIntesityLocation() const;
+	GLuint GetShininessLocation();
+	GLuint GetOmniLightPosLocation(); //const { return uniformOmniLightPos; };
+	inline GLuint GetFarPlaneLocation() const { return uniformFarPlane; };
 
-	 GLuint GetEyePositionLocation();
+	GLuint GetEyePositionLocation();
 
 	// Set light functions
 	void SetDirectionalLight(DirectionalLight* DirLight);
