@@ -98,6 +98,9 @@ float CalcDirectionalShadowFactor(DirectionalLightData light)
 	return shadow;
 }
 
+
+
+
 float CalcOmniShadowFactor64PerPixel(PointLightData pLight, int shadowIndex)
 {
 	vec3 fragToLight = FragPos - pLight.Position;

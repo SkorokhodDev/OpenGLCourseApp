@@ -29,21 +29,6 @@
 
 #include "CommonValues.h"
 
-void CheckOpenGLError(const char* stmt, const char* fname, int line)
-{
-    GLenum err = glGetError();
-    if (err != GL_NO_ERROR)
-    {
-        printf("OpenGL error %08x, at %s:%i - for %s\n", err, fname, line, stmt);
-        //abort();
-    }
-}
-
-#define GL_CHECK(stmt) do { \
-        stmt; \
-        CheckOpenGLError(#stmt, __FILE__, __LINE__); \
-    } while (0)
-
 
 std::vector<Mesh*> MeshList; 
 std::vector<Shader> ShaderList; 

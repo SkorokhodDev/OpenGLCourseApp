@@ -1,3 +1,6 @@
+
+
+
 #include "Shader.h"
 
 Shader::Shader() : ShaderID(0), uniformModel(0), uniformProjection(0), PointLightCount(0)
@@ -6,7 +9,7 @@ Shader::Shader() : ShaderID(0), uniformModel(0), uniformProjection(0), PointLigh
 }
 
 Shader::~Shader()
-{	
+{
 	ClearShader();
 }
 
@@ -45,7 +48,7 @@ std::string Shader::ReadFile(const char* FilePath)
 	std::ifstream FileStream(FilePath, std::iostream::in);
 	if (!FileStream.is_open()) {
 		std::cerr << "Error Reading file.";
-		return std::string(); 
+		return std::string();
 	}
 
 	std::string line = "";
@@ -54,6 +57,7 @@ std::string Shader::ReadFile(const char* FilePath)
 		std::getline(FileStream, line);
 		content.append(line + "\n");
 	}
+
 	FileStream.close();
 	return content;
 }
@@ -117,7 +121,7 @@ void Shader::SetPointLights(PointLight* PointLight, unsigned int LightCount, uns
 		PointLight[i].UseLight(uniformPointLights[i].uniformAmbientIntensity, uniformPointLights[i].uniformAmbientColour,
 			uniformPointLights[i].uniformDiffuseIntensity, uniformPointLights[i].uniformPosition,
 			uniformPointLights[i].uniformConstant, uniformPointLights[i].uniformLinear, uniformPointLights[i].uniformExponent);
-		
+
 		PointLight[i].GetShadowMap()->Read(GL_TEXTURE0 + initialTextureUnit + i);
 		glUniform1i(uniformOmniShadowMaps[i + offset].uniformShadowMap, initialTextureUnit + i);
 		glUniform1i(uniformOmniShadowMaps[i + offset].uniformFarPlane, PointLight[i].GetFarPlane());
@@ -194,7 +198,7 @@ void Shader::CompileShader(const char* VertexCode, const char* FragmentCode)
 	AddShader(ShaderID, VertexCode, GL_VERTEX_SHADER);
 	AddShader(ShaderID, FragmentCode, GL_FRAGMENT_SHADER);
 
-	CompileProgram();	
+	CompileProgram();
 }
 
 void Shader::CompileShader(const char* VertexCode, const char* GeometryCode, const char* FragmentCode)
