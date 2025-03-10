@@ -18,6 +18,8 @@ public:
 
 	void SetFlash(glm::vec3 Position, glm::vec3 Direction);
 
+	void Toggle() {};
+
 	~SpotLight();
 
 private:

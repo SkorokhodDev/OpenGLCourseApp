@@ -19,7 +19,7 @@ public:
 	void UseLight(GLuint AmbientIntensityLocation, GLuint AmbientColourLocation,
 		GLuint DiffuseDirectionLocation, GLuint DirectionLocation);
 
-	glm::mat4 CalculateLightTransform();
+	glm::mat4 CalculateDirLightTransform();
 
 private:
 	glm::vec3 Direction;

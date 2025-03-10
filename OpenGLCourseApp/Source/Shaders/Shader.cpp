@@ -3,7 +3,7 @@
 
 #include "Shader.h"
 
-Shader::Shader() : ShaderID(0), uniformModel(0), uniformProjection(0), PointLightCount(0)
+Shader::Shader() : ShaderID(0), uniformModel(0), uniformProjection(0), PointLightCount(0), SpotLightCount(0)
 {
 
 }
@@ -98,6 +98,10 @@ GLuint Shader::GetShininessLocation()
 {
 	return uniformShininess;
 }
+GLuint Shader::GetOmniLightPosLocation()
+{
+	return uniformOmniLightPos;
+}
 GLuint Shader::GetEyePositionLocation()
 {
 	return uniformEyePosition;
@@ -124,13 +128,13 @@ void Shader::SetPointLights(PointLight* PointLight, unsigned int LightCount, uns
 
 		PointLight[i].GetShadowMap()->Read(GL_TEXTURE0 + initialTextureUnit + i);
 		glUniform1i(uniformOmniShadowMaps[i + offset].uniformShadowMap, initialTextureUnit + i);
-		glUniform1i(uniformOmniShadowMaps[i + offset].uniformFarPlane, PointLight[i].GetFarPlane());
+		glUniform1f(uniformOmniShadowMaps[i + offset].uniformFarPlane, PointLight[i].GetFarPlane());
 	}
 }
 
 void Shader::SetSpotLights(SpotLight* SpotLight, unsigned int LightCount, unsigned int initialTextureUnit, unsigned int offset)
 {
-	if (LightCount > MAX_POINT_LIGHTS) LightCount = MAX_POINT_LIGHTS;
+	if (LightCount > MAX_SPOT_LIGHTS) LightCount = MAX_SPOT_LIGHTS;
 	// Set PointLightCount to the uniform variable in the fragment shader
 	glUniform1i(uniformSpotLightCount, LightCount);
 
@@ -143,11 +147,11 @@ void Shader::SetSpotLights(SpotLight* SpotLight, unsigned int LightCount, unsign
 
 		SpotLight[i].GetShadowMap()->Read(GL_TEXTURE0 + initialTextureUnit + i);
 		glUniform1i(uniformOmniShadowMaps[i + offset].uniformShadowMap, initialTextureUnit + i);
-		glUniform1i(uniformOmniShadowMaps[i + offset].uniformFarPlane, SpotLight[i].GetFarPlane());
+		glUniform1f(uniformOmniShadowMaps[i + offset].uniformFarPlane, SpotLight[i].GetFarPlane());
 	}
 }
 
-void Shader::SetTexutre(GLuint textureUnit)
+void Shader::SetTexture(GLuint textureUnit)
 {
 	glUniform1i(uniformTexture, textureUnit);
 }
@@ -157,7 +161,7 @@ void Shader::SetDirectionalShadowMap(GLuint textureUnit)
 	glUniform1i(uniformDirectionalShadowMap, textureUnit);
 }
 
-void Shader::SetLightMatrices(std::vector<glm::mat4> inLightMetrices)
+void Shader::SetOmniLightMatrices(std::vector<glm::mat4> inLightMetrices)
 {
 	for (size_t i = 0; i < 6; i++)
 	{
@@ -212,6 +216,8 @@ void Shader::CompileShader(const char* VertexCode, const char* GeometryCode, con
 	AddShader(ShaderID, VertexCode, GL_VERTEX_SHADER);
 	AddShader(ShaderID, GeometryCode, GL_GEOMETRY_SHADER);
 	AddShader(ShaderID, FragmentCode, GL_FRAGMENT_SHADER);
+
+	CompileProgram();
 }
 
 // Creates our shaders
@@ -273,33 +279,18 @@ void Shader::CompileProgram()
 	}
 
 	//get id of our uniform variable
-	uniformModel = glGetUniformLocation(ShaderID, "model");
 	uniformProjection = glGetUniformLocation(ShaderID, "projection");
+	uniformModel = glGetUniformLocation(ShaderID, "model");
 	uniformView = glGetUniformLocation(ShaderID, "view");
 	// Directional light
 	uniformDirectionalLight.uniformAmbientIntensity = glGetUniformLocation(ShaderID, "DirectionalLight.Base.AmbientIntensity");
 	uniformDirectionalLight.uniformAmbientColour = glGetUniformLocation(ShaderID, "DirectionalLight.Base.Colour");
 	uniformDirectionalLight.uniformDiffuseIntensity = glGetUniformLocation(ShaderID, "DirectionalLight.Base.DiffuseIntensity");
 	uniformDirectionalLight.uniformDirection = glGetUniformLocation(ShaderID, "DirectionalLight.Direction");
-	uniformEyePosition = glGetUniformLocation(ShaderID, "EyePosition");
 
+	uniformEyePosition = glGetUniformLocation(ShaderID, "EyePosition");
 	uniformShininess = glGetUniformLocation(ShaderID, "Material.Shininess");
 	uniformSpecularIntensity = glGetUniformLocation(ShaderID, "Material.SpecularIntensity");
-
-	uniformDirectionalLightTransform = glGetUniformLocation(ShaderID, "directionalLightTransform");
-	uniformTexture = glGetUniformLocation(ShaderID, "TheTexture");
-	uniformDirectionalShadowMap = glGetUniformLocation(ShaderID, "directionalShadowMap");
-
-	uniformOmniLightPos = glGetUniformLocation(ShaderID, "LightPos");
-	uniformFarPlane = glGetUniformLocation(ShaderID, "FarPlane");
-
-	for (size_t i = 0; i < 6; i++)
-	{
-		char LocBuffer[100] = { '\0' };
-
-		snprintf(LocBuffer, sizeof(LocBuffer), "LightMatrices[%d]", i);
-		uniformLightMetrices[i] = glGetUniformLocation(ShaderID, LocBuffer);
-	}
 
 	// Point light setup
 	uniformPointLightCount = glGetUniformLocation(ShaderID, "PointLightCount");
@@ -374,6 +365,23 @@ void Shader::CompileProgram()
 		snprintf(LocBuffer, sizeof(LocBuffer), "OmniShadowMaps[%d].FarPlane", i);
 		uniformOmniShadowMaps[i].uniformFarPlane = glGetUniformLocation(ShaderID, LocBuffer);
 	}
+
+	uniformDirectionalLightTransform = glGetUniformLocation(ShaderID, "directionalLightTransform");
+	uniformTexture = glGetUniformLocation(ShaderID, "TheTexture");
+	uniformDirectionalShadowMap = glGetUniformLocation(ShaderID, "directionalShadowMap");
+
+	uniformOmniLightPos = glGetUniformLocation(ShaderID, "OmniLightPos");
+	uniformFarPlane = glGetUniformLocation(ShaderID, "FarPlane");
+
+	for (size_t i = 0; i < 6; i++)
+	{
+		char LocBuffer[100] = { '\0' };
+
+		snprintf(LocBuffer, sizeof(LocBuffer), "LightMatrices[%d]", i);
+		uniformLightMetrices[i] = glGetUniformLocation(ShaderID, LocBuffer);
+	}
+
+	return;
 }
 
 

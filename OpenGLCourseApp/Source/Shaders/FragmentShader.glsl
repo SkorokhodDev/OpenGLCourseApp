@@ -1,7 +1,7 @@
 #version 330			
 
-const int MAX_POINT_LIGHTS = 3;
-const int MAX_SPOT_LIGHTS = 3;
+const int MAX_POINT_LIGHTS = 2;
+const int MAX_SPOT_LIGHTS = 2;
 												
 in vec4 vCol;									
 in vec2 TexCoord;		
@@ -61,47 +61,16 @@ uniform OmniShadowMap OmniShadowMaps[MAX_POINT_LIGHTS + MAX_SPOT_LIGHTS]; // Ini
 
 uniform vec3 EyePosition; // Camera position
 
-float CalcDirectionalShadowFactor(DirectionalLightData light)
-{
-	vec3 projCoords = DirectionalLightSpacePos.xyz / DirectionalLightSpacePos.w; // now coordnates would be between 1 and -1
-	projCoords = (projCoords * 0.5) + 0.5; // normalize into 0-1
-	
-	//float closestDepth = texture(directionalShadowMap, projCoords.xy).r; // left, right, up and down
-	float currentDepth = projCoords.z; // how far it is
+vec3 gridSamplingDisk[20] = vec3[]
+(
+   vec3(1, 1,  1), vec3( 1, -1,  1), vec3(-1, -1,  1), vec3(-1, 1,  1), 
+   vec3(1, 1, -1), vec3( 1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1),
+   vec3(1, 1,  0), vec3( 1, -1,  0), vec3(-1, -1,  0), vec3(-1, 1,  0),
+   vec3(1, 0,  1), vec3(-1,  0,  1), vec3( 1,  0, -1), vec3(-1, 0, -1),
+   vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
+);
 
-	vec3 normal = normalize(Normal);
-	vec3 lightDir = normalize(light.Direction);
-
-	float bias = max(0.05f * (1 - dot(normal, lightDir)), 0.005);
-
-	float shadow = 0.0;
-
-	vec2 texelSize = 1.0 / textureSize(directionalShadowMap, 0);
-	for(int x = -1; x <= 1; x++)
-	{
-		for(int y = -1; y <= 1; y++)
-		{
-			// pcfDepth =  closest value
-			float pcfDepth = texture(directionalShadowMap, projCoords.xy + vec2(x,y) * texelSize).r;
-			shadow += (currentDepth - bias) > pcfDepth ? 1.0 : 0.0;
-		}
-	}
-	shadow /= 9.0;
-
-	//float shadow = (currentDepth - bias) > closestDepth ? 1.0 : 0.0;
-	
-	if(projCoords.z > 1.0)
-	{
-		shadow = 0.0;
-	}
-
-	return shadow;
-}
-
-
-
-
-float CalcOmniShadowFactor64PerPixel(PointLightData pLight, int shadowIndex)
+float CalcOmniShadowFactor64PerPixel(PointLightData pLight, int shadowIndex) //CalcPointShadowFactor
 {
 	vec3 fragToLight = FragPos - pLight.Position;
 	float currentDepth = length(fragToLight);
@@ -133,6 +102,28 @@ float CalcOmniShadowFactor64PerPixel(PointLightData pLight, int shadowIndex)
 	//shadow = (currentDepth - bias) > closestDepth ? 1.0f : 0.0f;
 	return shadow;
 }
+
+float CalcPointShadowFactor(PointLightData light, int shadowIndex)
+{
+	vec3 fragToLight = FragPos - light.Position;
+	float currentDepth = length(fragToLight);
+	
+	float shadow = 0.0;
+	float bias   = 0.15;
+	int samples  = 20;
+	float viewDistance = length(EyePosition - FragPos);
+	float diskRadius = (1.0 + (viewDistance / OmniShadowMaps[shadowIndex].FarPlane)) / 25.0;
+	for(int i = 0; i < samples; ++i)
+	{
+		float closestDepth = texture(OmniShadowMaps[shadowIndex].ShadowMap, fragToLight + gridSamplingDisk[i] * diskRadius).r;
+		closestDepth *= OmniShadowMaps[shadowIndex].FarPlane;   // Undo mapping [0;1]
+		if(currentDepth - bias > closestDepth)
+			shadow += 1.0;
+	}
+	shadow /= float(samples);  
+	
+	return shadow;
+}
 			
 vec4 CalcLightByDirection(LightBaseData BaseLight, vec3 Direction, float shadowFactor)
 {
@@ -155,36 +146,71 @@ vec4 CalcLightByDirection(LightBaseData BaseLight, vec3 Direction, float shadowF
 	return (AmbientColour + (1.0 - shadowFactor) * (DiffuseColour + SpecularColor));
 }
 
-vec4 CalcDirectionalLight()
+float CalcDirectionalShadowFactor(vec4 DirectionalLightSpacePos)
 {
-	float shadowFactor = CalcDirectionalShadowFactor(DirectionalLight);
+	vec3 projCoords = DirectionalLightSpacePos.xyz / DirectionalLightSpacePos.w; // now coordnates would be between 1 and -1
+	projCoords = (projCoords * 0.5) + 0.5; // normalize into 0-1
+	
+	float closestDepth = texture(directionalShadowMap, projCoords.xy).r; // left, right, up and down
+	float currentDepth = projCoords.z; // how far it is
+
+	vec3 normal = normalize(Normal);
+	vec3 lightDir = normalize(DirectionalLight.Direction);
+
+	float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.0005);
+
+	float shadow = 0.0;
+	vec2 texelSize = 1.0 / textureSize(directionalShadowMap, 0);
+	for(int x = -1; x <= 1; x++)
+	{
+		for(int y = -1; y <= 1; y++)
+		{
+			// pcfDepth =  closest value
+			float pcfDepth = texture(directionalShadowMap, projCoords.xy + vec2(x,y) * texelSize).r;
+			shadow += (currentDepth - bias) > pcfDepth ? 1.0 : 0.0;
+		}
+	}
+	shadow /= 9.0;
+
+	if(projCoords.z > 1.0)
+	{
+		shadow = 0.0;
+	}
+
+	return shadow;
+}
+
+vec4 CalcDirectionalLight(vec4 InDirectionalLightSpacePos)
+{
+	float shadowFactor = CalcDirectionalShadowFactor(InDirectionalLightSpacePos);
 	return CalcLightByDirection(DirectionalLight.Base, DirectionalLight.Direction, shadowFactor);
 }
  
-vec4 CaclSinglePointLight(PointLightData PointLight, int shadowIndex) 
+vec4 CaclSinglePointLight(PointLightData pLight, int shadowIndex) 
 {
-	vec3 direction = FragPos - PointLight.Position;
+	vec3 direction = FragPos - pLight.Position;
 	float dirDistance = length(direction);
 	direction = normalize(direction);
 
-	float shadowFactor = CalcOmniShadowFactor64PerPixel(PointLight, shadowIndex);
-	 
-	vec4 Colour = CalcLightByDirection(PointLight.Base, direction, shadowFactor);
-	float Attenuation = PointLight.Exponent * dirDistance * dirDistance +
-						PointLight.Linear * dirDistance +
-						PointLight.Constant; // ax^2 + bx + c
+	float shadowFactor = CalcOmniShadowFactor64PerPixel(pLight, shadowIndex);
+	//float shadowFactor = CalcPointShadowFactor(pLight, shadowIndex);
+	
+	vec4 Colour = CalcLightByDirection(pLight.Base, direction, shadowFactor);
+	float Attenuation = pLight.Exponent * dirDistance * dirDistance +
+						pLight.Linear * dirDistance +
+						pLight.Constant; // ax^2 + bx + c
 	return (Colour/Attenuation);
 }
 
-vec4 CalcSingleSpotLight(SpotLightData SpotLight, int shadowIndex)
+vec4 CalcSingleSpotLight(SpotLightData sLight, int shadowIndex)
 {
-	vec3 RayDirection = normalize(FragPos - SpotLight.Base.Position);
-	float SpotLightFactor = dot(RayDirection, SpotLight.Direction);
+	vec3 RayDirection = normalize(FragPos - sLight.Base.Position);
+	float SpotLightFactor = dot(RayDirection, sLight.Direction);
 
-	if(SpotLightFactor > SpotLight.Edge)
+	if(SpotLightFactor > sLight.Edge)
 	{
-		vec4 Colour = CaclSinglePointLight(SpotLight.Base, shadowIndex);
-		return Colour * (1.0f - (1.0f - SpotLightFactor)  * (1.0f / (1.0f - SpotLight.Edge)));
+		vec4 Colour = CaclSinglePointLight(sLight.Base, shadowIndex);
+		return Colour * (1.0f - (1.0f - SpotLightFactor)  * (1.0f / (1.0f - sLight.Edge)));
 	} 
 	else 
 	{
@@ -214,7 +240,7 @@ vec4 CalcSpotLights()
 
 void main()										
 {						
-	vec4 FinalColour = CalcDirectionalLight();
+	vec4 FinalColour = CalcDirectionalLight(DirectionalLightSpacePos);
 	FinalColour += CalcPointLights();
 	FinalColour += CalcSpotLights();
 

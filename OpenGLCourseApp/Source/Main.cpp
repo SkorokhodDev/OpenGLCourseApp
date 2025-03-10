@@ -29,6 +29,20 @@
 
 #include "CommonValues.h"
 
+void CheckOpenGLError(const char* stmt, const char* fname, int line)
+{
+	GLenum err = glGetError();
+	if (err != GL_NO_ERROR)
+	{
+		printf("OpenGL error %08x, at %s:%i - for %s\n", err, fname, line, stmt);
+		//abort();
+	}
+}
+
+#define GL_CHECK(stmt) do { \
+        stmt; \
+        CheckOpenGLError(#stmt, __FILE__, __LINE__); \
+    } while (0)
 
 std::vector<Mesh*> MeshList; 
 std::vector<Shader> ShaderList; 
@@ -75,7 +89,7 @@ void CalcAverageNormals(unsigned int* indices, unsigned int indicesCount, GLfloa
 
 		normal = glm::normalize(normal);
 
-		in0 += normalOffset; in1 += normalOffset, in2 += normalOffset;
+		in0 += normalOffset; in1 += normalOffset; in2 += normalOffset;
 		vertices[in0] += normal.x; vertices[in0 + 1] += normal.y; vertices[in0 + 2] += normal.z;
 		vertices[in1] += normal.x; vertices[in1 + 1] += normal.y; vertices[in1 + 2] += normal.z;
 		vertices[in2] += normal.x; vertices[in2 + 1] += normal.y; vertices[in2 + 2] += normal.z;
@@ -108,13 +122,13 @@ void CreateObjects()
 		0, 1, 2
 	};
 
-	unsigned int FloorIndices[] = {
+	unsigned int floorIndices[] = {
 		0, 2, 1,
 		1, 2, 3
 	};
 
 
-	GLfloat FloorVertices[] = {
+	GLfloat floorVertices[] = {
 		//	x	 y		z		u	  v			nx	  ny	nz
 		-10.0f, 0.0f, -10.0f,	0.0f, 0.0f,		0.0f, -1.0f, 0.0f,
 		10.0f, 0.0f, -10.0f,	10.0f, 0.0f,	0.0f, -1.0f, 0.0f,
@@ -123,7 +137,8 @@ void CreateObjects()
 	};
 
 	CalcAverageNormals(indices, sizeof(indices) / sizeof(indices[0]), 
-		vertices, sizeof(vertices) / sizeof(vertices[0]), 8, 5);
+		vertices, sizeof(vertices) / sizeof(vertices[0]), 
+		8, 5);
 
 	// Creating Mesh 1
 	Mesh* obj1 = new Mesh();
@@ -131,8 +146,8 @@ void CreateObjects()
 	MeshList.push_back(obj1);
 
 	Mesh* Floor = new Mesh();
-	Floor->CreateMesh(FloorVertices, FloorIndices, 
-		sizeof(FloorVertices) / sizeof(FloorVertices[0]), sizeof(FloorIndices) / sizeof(FloorIndices[0]));
+	Floor->CreateMesh(floorVertices, floorIndices, 
+		sizeof(floorVertices) / sizeof(floorVertices[0]), sizeof(floorIndices) / sizeof(floorIndices[0]));
 	MeshList.push_back(Floor);
 
 }
@@ -144,7 +159,10 @@ void CreateShaders()
 	shader1->CreateFromFiles(vShader, fShader);
 	ShaderList.push_back(*shader1);
 
+	directionalShadowShader = Shader();
 	directionalShadowShader.CreateFromFiles("Source/Shaders/DirectionalShadowMapVertexShader.glsl", "Source/Shaders/DirectionalShadowMapFragmentShader.glsl");
+
+	omniShadowShader = Shader();
 	omniShadowShader.CreateFromFiles("Source/Shaders/OmniShadowMapVert.glsl", "Source/Shaders/OmniShadowMapGeom.glsl", "Source/Shaders/OmniShadowMapFrag.glsl");
 }
 
@@ -179,10 +197,10 @@ void RenderScene()
 
 	/////////////// FLooor
 	model = glm::mat4(1.0f);
-	model = glm::translate(model, glm::vec3(0.0f, -2.0f, 0.0f));
+	model = glm::translate(model, glm::vec3(0.0f, -10.0f, 0.0f));
 	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 	Tex_Dirt.UseTexture();
-	DullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+	ShinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 	MeshList[1]->RenderMesh();
 
 	//////////////////// Xwing
@@ -200,7 +218,6 @@ void RenderScene()
 	{
 		HelicopterAngle = 0.1f;
 	}
-	
 	model = glm::mat4(1.0f);
 	model = glm::rotate(model, -HelicopterAngle * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
 	model = glm::translate(model, glm::vec3(-8.0f, 2.0f, 0.0f));
@@ -213,7 +230,7 @@ void RenderScene()
 	Helicopter.RenderModel();
 }
 
-void DirectinalShadowMapPass(DirectionalLight* light) //upgrade to several lights if i have more then one dir light
+void DirectionalShadowMapPass(DirectionalLight* light) //upgrade to several lights if i have more then one dir light
 {
 	directionalShadowShader.UseShader();
 
@@ -224,7 +241,7 @@ void DirectinalShadowMapPass(DirectionalLight* light) //upgrade to several light
 	glClear(GL_DEPTH_BUFFER_BIT);
 
 	uniformModel = directionalShadowShader.GetModelLocation();
-	glm::mat4 lightTransform = light->CalculateLightTransform();
+	glm::mat4 lightTransform = light->CalculateDirLightTransform();
 	directionalShadowShader.SetDirectionalLightTransform(&lightTransform);
 
 	directionalShadowShader.Validate();
@@ -250,7 +267,7 @@ void OmniShadowMapPass(PointLight* pLight)
 
 	glUniform3f(uniformOmniLightPos, pLight->GetPosition().x, pLight->GetPosition().y, pLight->GetPosition().z);
 	glUniform1f(uniformFarPlane, pLight->GetFarPlane());
-	omniShadowShader.SetLightMatrices(pLight->CalculateLightTransform());
+	omniShadowShader.SetOmniLightMatrices(pLight->CalculateLightTransform());
 
 	omniShadowShader.Validate();
 
@@ -274,7 +291,7 @@ void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
 	glViewport(0, 0, 1366, 768);
 
 	// Clear window 
-	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projectionMatrix));
@@ -284,15 +301,16 @@ void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
 	ShaderList[0].SetDirectionalLight(&MainLight);
 	ShaderList[0].SetPointLights(PointLights, PointLightCount, 3, 0);
 	ShaderList[0].SetSpotLights(SpotLights, SpotLightCount, 3 + PointLightCount, PointLightCount); // set offset
-	glm::mat4 lightTransform = MainLight.CalculateLightTransform();
+	glm::mat4 lightTransform = MainLight.CalculateDirLightTransform();
 	ShaderList[0].SetDirectionalLightTransform(&lightTransform);
 
 	MainLight.GetShadowMap()->Read(GL_TEXTURE2);
-	ShaderList[0].SetTexutre(1);
+
+	ShaderList[0].SetTexture(1);
 	ShaderList[0].SetDirectionalShadowMap(2);
 
 	glm::vec3 LowerLight = camera.GetCameraPosition();
-	LowerLight.y -= 0.3f; // -=0.3f
+	LowerLight.y -= 0.03f; // -=0.3f
 	SpotLights[0].SetFlash(LowerLight, camera.GetCameraDirection());
 
 	ShaderList[0].Validate();
@@ -306,8 +324,8 @@ int main()
 	Window* MainWindow = new Window(1366, 768);
 	MainWindow->Initialize();
 
-	CreateShaders();
 	CreateObjects();
+	CreateShaders();
 
 	///////////////////// Load Texture 
 	Tex_Brick = Texture("Resources/Textures/brick.png");
@@ -318,7 +336,7 @@ int main()
 	Tex_Plain.LoadTexture(true);
 
 	//////////////////// Materials
-	ShinyMaterial = Material(1.0f, 32);
+	ShinyMaterial = Material(4.0f, 256);
 	DullMaterial = Material(0.3f, 4);
 
 	////////////////////// Models
@@ -332,31 +350,31 @@ int main()
 	///////////////////// L I G H T I N G
 	//Initialize DirectionalLight
 	MainLight = DirectionalLight(1.0f, 1.0f, 1.0f, 
-		0.1f, 0.3f, // 0,3 0.6
+		0.01f, 0.2f, // 0,3 0.6
 		0.0f, -15.0f, -10.0f, 
 		2048, 2048);
 
 	// Initialize PointLights
-	PointLights[0] = PointLight(0.0f, 0.0f, 1.0f,
+	PointLights[0] = PointLight(0.0f, 0.0f, 1.0f, // colour
 								0.2f, 1.0f,
-								1.0f, 2.0f, 0.0f,
-								1.0f, 2.0f, 0.01f,
+								1.0f, 2.0f, 0.0f, // pos
+								1.0f, 2.0f, 1.0f,
 								1024, 1024, 0.01f, 100.0f);
 	PointLightCount++;
-	PointLights[1] = PointLight(0.0f, 1.0f, 0.0f,
+	PointLights[1] = PointLight(0.0f, 1.0f, 0.0f, // colour
 								0.2f, 1.0f,
-								-4.0f, 3.0f, 0.0f,
+								-4.0f, -8.0f, 0.0f, // pos
 								0.3f, 0.1f, 0.01f,
 								1024, 1024, 0.01f, 100.0f);
 	PointLightCount++;
 	
 	// Initialize SpotLights
 	SpotLights[0] = SpotLight(1.0f, 1.0f, 1.0f,    // Flash light
-							1.0f, 1.0f,
-							0.0f, 0.0f, 0.0f,
-							0.0f, -1.0f, 0.0f,
-							1.0f, 0.0f, 0.0f, 20.0f,
-							1024, 1024, 0.01f, 100.0f);
+								0.0f, 2.0f,
+								0.0f, 0.0f, 0.0f, //pos
+								0.0f, -1.0f, 0.0f, // dir
+								1.0f, 0.0f, 0.0f, 20.0f, // edge
+								1024, 1024, 0.01f, 100.0f);
 	SpotLightCount++;
 	SpotLights[1] = SpotLight(1.0f, 0.0f, 1.0f,
 								1.0f, 3.0f,
@@ -364,11 +382,11 @@ int main()
 								-100.0f, -1.0f, 0.0f,
 								1.0f, 0.0f, 0.0f, 20.0f,
 								1024, 1024, 0.01f, 100.0f);
-	SpotLightCount++;
+	//SpotLightCount++;
 
 
 
-	glm::mat4 projection = glm::perspective(glm::radians(60.0f), MainWindow->GetBufferWidth() / MainWindow->GetBufferHeight(), 0.1f, 100.0f);
+	glm::mat4 projection = glm::perspective(glm::radians(60.0f), (GLfloat)MainWindow->GetBufferWidth() / MainWindow->GetBufferHeight(), 0.1f, 100.0f);
 
 	GLfloat DeltaTime = 0.0f;
 	GLfloat LastTime = 0.0f;
@@ -388,10 +406,16 @@ int main()
 		camera.KeyControl(MainWindow->GetKeys(), DeltaTime);
 		camera.MouseControl(MainWindow->GetXChange(), MainWindow->GetYChange());
 
+		if (MainWindow->GetKeys()[GLFW_KEY_L])
+		{
+			SpotLights[0].Toggle();
+			MainWindow->GetKeys()[GLFW_KEY_L] = false;
+		}
+
 		// This will render the screnn, but not to the viewport.
 		// It will render it to a frame buffer, which will then save it to a texture.
 		// Then this texture will be used in next pass;
-		DirectinalShadowMapPass(&MainLight);
+		DirectionalShadowMapPass(&MainLight);
 		for (size_t i = 0; i < PointLightCount; i++)
 		{
 			OmniShadowMapPass(&PointLights[i]);

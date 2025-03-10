@@ -42,7 +42,7 @@ public:
 
 	 GLuint GetSpecularIntesityLocation() const;
 	 GLuint GetShininessLocation();
-	 inline GLuint GetOmniLightPosLocation() const { return uniformOmniLightPos; };
+	 GLuint GetOmniLightPosLocation(); //const { return uniformOmniLightPos; };
 	 inline GLuint GetFarPlaneLocation() const { return uniformFarPlane; };
 
 	 GLuint GetEyePositionLocation();
@@ -52,10 +52,10 @@ public:
 	void SetPointLights(PointLight* PointLight, unsigned int LightCount, unsigned int initialTextureUnit, unsigned int offset);
 	void SetSpotLights(SpotLight* PointLight, unsigned int LightCount, unsigned int initialTextureUnit, unsigned int offset);
 	
-	void SetTexutre(GLuint textureUnit);
+	void SetTexture(GLuint textureUnit);
 	void SetDirectionalLightTransform(glm::mat4* lTransform);
 	void SetDirectionalShadowMap(GLuint textureUnit);
-	void SetLightMatrices(std::vector<glm::mat4> inLightMetrices);
+	void SetOmniLightMatrices(std::vector<glm::mat4> inLightMetrices);
 
 	void UseShader();
 	void ClearShader();
