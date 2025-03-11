@@ -23,7 +23,7 @@ PointLight::PointLight(GLfloat red, GLfloat green, GLfloat blue,
 	FarPlane = farPlane;
 
 	float aspect = (float)shadowWidth / (float)shadowHeight;
-	lightProj = glm::perspective(glm::radians(60.f), aspect, nearPlane, farPlane);
+	lightProj = glm::perspective(glm::radians(90.f), aspect, nearPlane, farPlane);
 
 	shadowMap = new OmniShadowMap();
 	shadowMap->init(shadowWidth, shadowHeight);
@@ -51,7 +51,6 @@ PointLight::~PointLight()
 std::vector<glm::mat4> PointLight::CalculateLightTransform()
 {
 	std::vector<glm::mat4> lightMatrices;
-	lightMatrices.reserve(6);
 	// Should be the same order as GL_TEXTURE_CUBE_MAP_POSITIVE_X. Positive X
 	lightMatrices.push_back(lightProj 
 		* glm::lookAt(Position, Position + glm::vec3(1.0, 0.0, 0.0), glm::vec3(0.0f, -1.0f, 0.0)));

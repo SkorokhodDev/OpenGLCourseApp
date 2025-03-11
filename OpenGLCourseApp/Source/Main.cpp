@@ -50,7 +50,7 @@ Shader directionalShadowShader;
 Shader omniShadowShader;
 
 //Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 2.0f, 0.2f);
-Camera camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -60.0f, 0.0f, 5.0f, 0.5f);
+Camera camera; //(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -60.0f, 0.0f, 5.0f, 0.5f);
 
 DirectionalLight MainLight;
 PointLight PointLights[MAX_POINT_LIGHTS];
@@ -246,8 +246,6 @@ void DirectionalShadowMapPass(DirectionalLight* light) //upgrade to several ligh
 
 	directionalShadowShader.Validate();
 
-
-	GLuint testDebug = glGetUniformLocation(directionalShadowShader.GetShaderID(), "model_test");
 	RenderScene();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -267,9 +265,9 @@ void OmniShadowMapPass(PointLight* pLight)
 	uniformOmniLightPos = omniShadowShader.GetOmniLightPosLocation();
 	uniformFarPlane = omniShadowShader.GetFarPlaneLocation();
 
-
 	glUniform3f(uniformOmniLightPos, pLight->GetPosition().x, pLight->GetPosition().y, pLight->GetPosition().z);
 	glUniform1f(uniformFarPlane, pLight->GetFarPlane());
+	std::vector<glm::mat4> lightMatrices = pLight->CalculateLightTransform();
 	omniShadowShader.SetOmniLightMatrices(pLight->CalculateLightTransform());
 
 	omniShadowShader.Validate();
@@ -328,6 +326,8 @@ int main()
 	Window* MainWindow = new Window(1366, 768);
 	MainWindow->Initialize();
 
+	camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.5f);
+
 	CreateObjects();
 	CreateShaders();
 
@@ -358,10 +358,11 @@ int main()
 								0.0f, -15.0f, -10.0f, 
 								2048, 2048);
 
-	// Initialize PointLights
+	// TODO: works only in direction of the first point light, so the second also do shadows in the same way as the first
+	// Initialize PointLights 
 	PointLights[0] = PointLight(0.0f, 0.0f, 1.0f, // colour
 								0.2f, 1.0f,
-								1.0f, 2.0f, 0.0f, // pos
+								3.0f, 2.0f, 0.0f, // pos
 								0.3f, 0.01f, 0.01f,
 								1024, 1024, 0.01f, 100.0f);
 	PointLightCount++;
@@ -379,7 +380,7 @@ int main()
 								0.0f, -1.0f, 0.0f, // dir
 								1.0f, 0.0f, 0.0f, 20.0f, // edge
 								1024, 1024, 0.01f, 100.0f);
-	SpotLightCount++;
+	//SpotLightCount++;
 	SpotLights[1] = SpotLight(1.0f, 0.0f, 1.0f,
 								1.0f, 3.0f,
 								3.0f, 0.0f, 0.0f,

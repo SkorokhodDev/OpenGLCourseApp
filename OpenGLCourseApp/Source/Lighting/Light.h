@@ -27,7 +27,7 @@ protected:
 
 	GLfloat DiffuseIntensity;
 
-	glm::mat4 lightProj;
+	glm::mat4 lightProj; //shadow projection matrix
 	ShadowMap* shadowMap;
 };
 

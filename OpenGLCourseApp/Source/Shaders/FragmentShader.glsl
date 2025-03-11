@@ -47,19 +47,19 @@ struct MaterialData {
 	float Shininess;
 };
 
-uniform int PointLightCount;
-uniform int SpotLightCount;
+uniform int u_PointLightCount;
+uniform int u_SpotLightCount;
 
-uniform DirectionalLightData DirectionalLight;
-uniform PointLightData PointLights[MAX_POINT_LIGHTS];
-uniform SpotLightData SpotLights[MAX_SPOT_LIGHTS];
+uniform DirectionalLightData u_DirectionalLight;
+uniform PointLightData u_PointLights[MAX_POINT_LIGHTS];
+uniform SpotLightData u_SpotLights[MAX_SPOT_LIGHTS];
 
-uniform sampler2D TheTexture;
-uniform sampler2D directionalShadowMap;
-uniform MaterialData Material;
-uniform OmniShadowMap OmniShadowMaps[MAX_POINT_LIGHTS + MAX_SPOT_LIGHTS]; // Init Point Lights First, then spot lights
+uniform sampler2D u_TheTexture;
+uniform sampler2D u_DirectionalShadowMap;
+uniform MaterialData u_Material;
+uniform OmniShadowMap u_OmniShadowMaps[MAX_POINT_LIGHTS + MAX_SPOT_LIGHTS]; // Init Point Lights First, then spot lights
 
-uniform vec3 EyePosition; // Camera position
+uniform vec3 u_EyePosition; // Camera position
 
 vec3 gridSamplingDisk[20] = vec3[]
 (
@@ -70,6 +70,7 @@ vec3 gridSamplingDisk[20] = vec3[]
    vec3(0, 1,  1), vec3( 0, -1,  1), vec3( 0, -1, -1), vec3( 0, 1, -1)
 );
 
+// Percentage-closer filtering
 float CalcOmniShadowFactor64PerPixel(PointLightData pLight, int shadowIndex) //CalcPointShadowFactor
 {
 	vec3 fragToLight = FragPos - pLight.Position;
@@ -87,9 +88,9 @@ float CalcOmniShadowFactor64PerPixel(PointLightData pLight, int shadowIndex) //C
 			for(float z = -offset; z < offset; z += offset / (samples * 0.5))
 			{
 				// .r - get first value
-				float closestDepth = texture(OmniShadowMaps[shadowIndex].ShadowMap, fragToLight + vec3(x,y,z)).r; 
+				float closestDepth = texture(u_OmniShadowMaps[shadowIndex].ShadowMap, fragToLight + vec3(x,y,z)).r; 
 				// undo divide by FarPlane from OmniShadowFrag.glsl
-				closestDepth *= OmniShadowMaps[shadowIndex].FarPlane; 
+				closestDepth *= u_OmniShadowMaps[shadowIndex].FarPlane; 
 				if((currentDepth - bias) > closestDepth)
 				{
 					shadow += 1.0f;
@@ -111,12 +112,12 @@ float CalcPointShadowFactor(PointLightData light, int shadowIndex)
 	float shadow = 0.0;
 	float bias   = 0.15;
 	int samples  = 20;
-	float viewDistance = length(EyePosition - FragPos);
-	float diskRadius = (1.0 + (viewDistance / OmniShadowMaps[shadowIndex].FarPlane)) / 25.0;
+	float viewDistance = length(u_EyePosition - FragPos);
+	float diskRadius = (1.0 + (viewDistance / u_OmniShadowMaps[shadowIndex].FarPlane)) / 25.0;
 	for(int i = 0; i < samples; ++i)
 	{
-		float closestDepth = texture(OmniShadowMaps[shadowIndex].ShadowMap, fragToLight + gridSamplingDisk[i] * diskRadius).r;
-		closestDepth *= OmniShadowMaps[shadowIndex].FarPlane;   // Undo mapping [0;1]
+		float closestDepth = texture(u_OmniShadowMaps[shadowIndex].ShadowMap, fragToLight + gridSamplingDisk[i] * diskRadius).r;
+		closestDepth *= u_OmniShadowMaps[shadowIndex].FarPlane;   // Undo mapping [0;1]
 		if(currentDepth - bias > closestDepth)
 			shadow += 1.0;
 	}
@@ -134,13 +135,13 @@ vec4 CalcLightByDirection(LightBaseData BaseLight, vec3 Direction, float shadowF
 	vec4 SpecularColor = vec4(0,0,0,0);
 
 	if(DiffuseFactor > 0.0f) {
-		vec3 FragToEye = normalize(EyePosition - FragPos);
+		vec3 FragToEye = normalize(u_EyePosition - FragPos);
 		vec3 ReflectedVertex = normalize(reflect(Direction,  normalize(Normal)));
 
 		float SpecularFactor = dot(FragToEye, ReflectedVertex);
 		if(SpecularFactor > 0.0f) {
-			SpecularFactor = pow(SpecularFactor, Material.Shininess);
-			SpecularColor = vec4(BaseLight.Colour * Material.SpecularIntensity * SpecularFactor, 1.0f);
+			SpecularFactor = pow(SpecularFactor, u_Material.Shininess);
+			SpecularColor = vec4(BaseLight.Colour * u_Material.SpecularIntensity * SpecularFactor, 1.0f);
 		}
 	}
 	return (AmbientColour + (1.0 - shadowFactor) * (DiffuseColour + SpecularColor));
@@ -151,22 +152,21 @@ float CalcDirectionalShadowFactor(vec4 DirectionalLightSpacePos)
 	vec3 projCoords = DirectionalLightSpacePos.xyz / DirectionalLightSpacePos.w; // now coordnates would be between 1 and -1
 	projCoords = (projCoords * 0.5) + 0.5; // normalize into 0-1
 	
-	float closestDepth = texture(directionalShadowMap, projCoords.xy).r; // left, right, up and down
+	float closestDepth = texture(u_DirectionalShadowMap, projCoords.xy).r; // left, right, up and down
 	float currentDepth = projCoords.z; // how far it is
 
 	vec3 normal = normalize(Normal);
-	vec3 lightDir = normalize(DirectionalLight.Direction);
-
+	vec3 lightDir = normalize(u_DirectionalLight.Direction);
 	float bias = max(0.05 * (1.0 - dot(normal, lightDir)), 0.0005);
 
 	float shadow = 0.0;
-	vec2 texelSize = 1.0 / textureSize(directionalShadowMap, 0);
+	vec2 texelSize = 1.0 / textureSize(u_DirectionalShadowMap, 0);
 	for(int x = -1; x <= 1; x++)
 	{
 		for(int y = -1; y <= 1; y++)
 		{
 			// pcfDepth =  closest value
-			float pcfDepth = texture(directionalShadowMap, projCoords.xy + vec2(x,y) * texelSize).r;
+			float pcfDepth = texture(u_DirectionalShadowMap, projCoords.xy + vec2(x,y) * texelSize).r;
 			shadow += (currentDepth - bias) > pcfDepth ? 1.0 : 0.0;
 		}
 	}
@@ -183,7 +183,7 @@ float CalcDirectionalShadowFactor(vec4 DirectionalLightSpacePos)
 vec4 CalcDirectionalLight(vec4 InDirectionalLightSpacePos)
 {
 	float shadowFactor = CalcDirectionalShadowFactor(InDirectionalLightSpacePos);
-	return CalcLightByDirection(DirectionalLight.Base, DirectionalLight.Direction, shadowFactor);
+	return CalcLightByDirection(u_DirectionalLight.Base, u_DirectionalLight.Direction, shadowFactor);
 }
  
 vec4 CaclSinglePointLight(PointLightData pLight, int shadowIndex) 
@@ -221,9 +221,9 @@ vec4 CalcSingleSpotLight(SpotLightData sLight, int shadowIndex)
 vec4 CalcPointLights()
 {
 	vec4 TotalColour = vec4(0,0,0,0);
-	for(int i = 0; i < PointLightCount; i++)
+	for(int i = 0; i < u_PointLightCount; i++)
 	{
-		TotalColour += CaclSinglePointLight(PointLights[i], i);
+		TotalColour += CaclSinglePointLight(u_PointLights[i], i);
 	}
 	return TotalColour;
 }
@@ -231,9 +231,9 @@ vec4 CalcPointLights()
 vec4 CalcSpotLights()
 {
 	vec4 TotalColour = vec4(0,0,0,0);
-	for(int i = 0; i < SpotLightCount; i++)
+	for(int i = 0; i < u_SpotLightCount; i++)
 	{
-		TotalColour += CalcSingleSpotLight(SpotLights[i], i + PointLightCount);
+		TotalColour += CalcSingleSpotLight(u_SpotLights[i], i + u_PointLightCount);
 	}
 	return TotalColour;
 }
@@ -244,5 +244,5 @@ void main()
 	FinalColour += CalcPointLights();
 	FinalColour += CalcSpotLights();
 
-	Colour = texture(TheTexture, TexCoord) * FinalColour;								
+	Colour = texture(u_TheTexture, TexCoord) * FinalColour;								
 }

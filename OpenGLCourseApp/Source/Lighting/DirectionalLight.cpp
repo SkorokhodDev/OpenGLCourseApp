@@ -15,7 +15,6 @@ DirectionalLight::DirectionalLight(GLfloat red, GLfloat green, GLfloat blue,
 		shadowWith, shadowHeight)
 {
 	Direction = glm::vec3(xDir, yDir, zDir);
-	//Direction = glm::vec3(xDir, -15.f, -10.f);
 	lightProj = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 0.1f, 100.0f); // Size of shadow box 
 }
 
