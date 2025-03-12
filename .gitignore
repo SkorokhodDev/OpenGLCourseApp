@@ -364,4 +364,5 @@ FodyWeavers.xsd
 
 
 # my own ignore
+!Dependencies/**
 !Dependencies/glew-2.1.0/**
