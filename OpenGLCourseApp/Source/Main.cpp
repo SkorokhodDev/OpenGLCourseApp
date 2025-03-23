@@ -27,6 +27,7 @@
 
 #include "Rendering/Model.h"
 
+#include "Window/Benchmark.h"
 #include "CommonValues.h"
 
 void CheckOpenGLError(const char* stmt, const char* fname, int line)
@@ -170,6 +171,7 @@ void CreateShaders()
 ///////////////////// Load Texture 
 Texture Tex_Brick;
 Texture Tex_Dirt;
+Texture Tex_SciFi;
 Texture Tex_Plain;
 
 //////////////////// Materials
@@ -199,7 +201,7 @@ void RenderScene()
 	model = glm::mat4(1.0f);
 	model = glm::translate(model, glm::vec3(0.0f, -2.0f, 0.0f));
 	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-	Tex_Dirt.UseTexture();
+	Tex_SciFi.UseTexture();
 	ShinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 	MeshList[1]->RenderMesh();
 
@@ -321,6 +323,8 @@ void RenderPass(glm::mat4 projectionMatrix, glm::mat4 viewMatrix)
 }
 
 
+
+
 int main()
 {
 	Window* MainWindow = new Window(1366, 768);
@@ -336,6 +340,8 @@ int main()
 	Tex_Brick.LoadTexture(true);
 	Tex_Dirt = Texture("Resources/Textures/dirt.png");
 	Tex_Dirt.LoadTexture(true);
+	Tex_SciFi = Texture("Resources/Textures/scifi.png");
+	Tex_SciFi.LoadTexture(false);
 	Tex_Plain = Texture("Resources/Textures/plain.png");
 	Tex_Plain.LoadTexture(true);
 
@@ -362,16 +368,23 @@ int main()
 	// Initialize PointLights 
 	PointLights[0] = PointLight(0.0f, 0.0f, 1.0f, // colour
 								0.2f, 1.0f,
-								3.0f, 2.0f, 0.0f, // pos
+								5.0f, 2.0f, 1.0f, // pos
 								0.3f, 0.01f, 0.01f,
 								1024, 1024, 0.01f, 100.0f);
 	PointLightCount++;
 	PointLights[1] = PointLight(0.0f, 1.0f, 0.0f, // colour
 								0.2f, 1.0f,
-								-4.0f, 2.0f, 0.0f, // pos
+								-5.0f, 2.0f, 1.0f, // pos
 								0.3f, 0.01f, 0.01f,
 								1024, 1024, 0.01f, 100.0f);
 	PointLightCount++;
+	PointLights[2] = PointLight(1.0f, 0.0f, 0.0f, // colour
+								0.2f, 1.0f,
+								0.0f, 2.0f, -7.0f, // pos
+								0.3f, 0.01f, 0.01f,
+								1024, 1024, 0.01f, 100.0f);
+	PointLightCount++;
+
 	
 	// Initialize SpotLights
 	SpotLights[0] = SpotLight(1.0f, 1.0f, 1.0f,    // Flash light
@@ -396,13 +409,19 @@ int main()
 	GLfloat DeltaTime = 0.0f;
 	GLfloat LastTime = 0.0f;
 
+	Benchmark benchmark;
+
+	benchmark.InitTimerQuery();
+
 	// Main loop
 	while (!MainWindow->GetShouldClose())
 	{
-
 		GLfloat CurrentTime = glfwGetTime(); // STD_GetPerfomanceCounter();
 		DeltaTime = CurrentTime - LastTime; // (CurrentTimme - LastTime) * 1000 / STD_GetPerfomanceFrequency(); // 1000* to convert into seconds
 		LastTime = CurrentTime;
+
+		benchmark.StartMeasureFrameTime();
+		benchmark.BeginQuery();
 
 		// Get + Handle user input events (resize and etc)
 		glfwPollEvents();
@@ -417,7 +436,7 @@ int main()
 			MainWindow->GetKeys()[GLFW_KEY_L] = false;
 		}
 
-		// This will render the screnn, but not to the viewport.
+		// This will render the screen, but not to the viewport.
 		// It will render it to a frame buffer, which will then save it to a texture.
 		// Then this texture will be used in next pass;
 		DirectionalShadowMapPass(&MainLight);
@@ -433,6 +452,12 @@ int main()
 		RenderPass(projection, camera.CalculateViewMatrix());
 
 		glUseProgram(0);
+
+		benchmark.EndMeasureFrameTime();
+		benchmark.MeasureGPUTime();
+		Benchmark::CalculateFPS();
+		Benchmark::PrintMemoryUsage(Benchmark::GetMemoryUsage_Windows);
+		Benchmark::PrintCPUUsage();
 
 		MainWindow->SpawBuffers();
 	}

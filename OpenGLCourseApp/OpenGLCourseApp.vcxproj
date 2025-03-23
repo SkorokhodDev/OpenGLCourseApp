@@ -143,6 +143,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Source\Window\Benchmark.cpp" />
     <ClCompile Include="Source\Lighting\Shadows\OmniShadowMap.cpp" />
     <ClCompile Include="Source\Lighting\Shadows\ShadowMap.cpp" />
     <ClCompile Include="Source\Rendering\Model.cpp" />
@@ -159,6 +160,7 @@
     <ClCompile Include="Source\Lighting\SpotLight.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Source\Window\Benchmark.h" />
     <ClInclude Include="Source\Lighting\Shadows\OmniShadowMap.h" />
     <ClInclude Include="Source\Lighting\Shadows\ShadowMap.h" />
     <ClInclude Include="Source\Rendering\Model.h" />
