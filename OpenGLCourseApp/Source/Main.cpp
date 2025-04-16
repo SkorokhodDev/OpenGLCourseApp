@@ -1,4 +1,4 @@
-#define _USE_MATH_DEFINES
+﻿#define _USE_MATH_DEFINES
 
 #include <stdio.h>
 #include <cstring> //std::strlen
@@ -123,6 +123,62 @@ void CreateObjects()
 		0, 1, 2
 	};
 
+	GLfloat cubeVertices[] = {
+		//  x       y       z       u     v      nx    ny    nz
+
+		// Передня грань
+		-0.5f, -0.5f,  0.5f,   0.0f, 0.0f,   0.0f,  0.0f,  1.0f,
+		 0.5f, -0.5f,  0.5f,   1.0f, 0.0f,   0.0f,  0.0f,  1.0f,
+		 0.5f,  0.5f,  0.5f,   1.0f, 1.0f,   0.0f,  0.0f,  1.0f,
+		-0.5f,  0.5f,  0.5f,   0.0f, 1.0f,   0.0f,  0.0f,  1.0f,
+
+		// Задня грань
+		-0.5f, -0.5f, -0.5f,   1.0f, 0.0f,   0.0f,  0.0f, -1.0f,
+		-0.5f,  0.5f, -0.5f,   1.0f, 1.0f,   0.0f,  0.0f, -1.0f,
+		 0.5f,  0.5f, -0.5f,   0.0f, 1.0f,   0.0f,  0.0f, -1.0f,
+		 0.5f, -0.5f, -0.5f,   0.0f, 0.0f,   0.0f,  0.0f, -1.0f,
+
+		 // Ліва грань
+		 -0.5f, -0.5f, -0.5f,   0.0f, 0.0f,  -1.0f,  0.0f,  0.0f,
+		 -0.5f, -0.5f,  0.5f,   1.0f, 0.0f,  -1.0f,  0.0f,  0.0f,
+		 -0.5f,  0.5f,  0.5f,   1.0f, 1.0f,  -1.0f,  0.0f,  0.0f,
+		 -0.5f,  0.5f, -0.5f,   0.0f, 1.0f,  -1.0f,  0.0f,  0.0f,
+
+		 // Права грань
+		  0.5f, -0.5f,  0.5f,   0.0f, 0.0f,   1.0f,  0.0f,  0.0f,
+		  0.5f, -0.5f, -0.5f,   1.0f, 0.0f,   1.0f,  0.0f,  0.0f,
+		  0.5f,  0.5f, -0.5f,   1.0f, 1.0f,   1.0f,  0.0f,  0.0f,
+		  0.5f,  0.5f,  0.5f,   0.0f, 1.0f,   1.0f,  0.0f,  0.0f,
+
+		  // Верхня грань
+		  -0.5f,  0.5f,  0.5f,   0.0f, 0.0f,   0.0f,  1.0f,  0.0f,
+		   0.5f,  0.5f,  0.5f,   1.0f, 0.0f,   0.0f,  1.0f,  0.0f,
+		   0.5f,  0.5f, -0.5f,   1.0f, 1.0f,   0.0f,  1.0f,  0.0f,
+		  -0.5f,  0.5f, -0.5f,   0.0f, 1.0f,   0.0f,  1.0f,  0.0f,
+
+		  // Нижня грань
+		  -0.5f, -0.5f, -0.5f,   0.0f, 0.0f,   0.0f, -1.0f,  0.0f,
+		   0.5f, -0.5f, -0.5f,   1.0f, 0.0f,   0.0f, -1.0f,  0.0f,
+		   0.5f, -0.5f,  0.5f,   1.0f, 1.0f,   0.0f, -1.0f,  0.0f,
+		  -0.5f, -0.5f,  0.5f,   0.0f, 1.0f,   0.0f, -1.0f,  0.0f,
+	};
+
+	unsigned int cubeIndices[] = {
+		// Передня грань
+		0, 1, 2,  2, 3, 0,
+		// Задня грань
+		4, 5, 6,  6, 7, 4,
+		// Ліва грань
+		8, 9,10, 10,11, 8,
+		// Права грань
+		12,13,14, 14,15,12,
+		// Верхня грань
+		16,17,18, 18,19,16,
+		// Нижня грань
+		20,21,22, 22,23,20
+	};
+
+
 	unsigned int floorIndices[] = {
 		0, 2, 1,
 		1, 2, 3
@@ -151,6 +207,10 @@ void CreateObjects()
 		sizeof(floorVertices) / sizeof(floorVertices[0]), sizeof(floorIndices) / sizeof(floorIndices[0]));
 	MeshList.push_back(Floor);
 
+	Mesh* cube = new Mesh();
+	cube->CreateMesh(cubeVertices, cubeIndices, sizeof(cubeVertices) / sizeof(cubeVertices[0]), sizeof(cubeIndices) / sizeof(cubeIndices[0]));
+	MeshList.push_back(cube);
+
 }
 
 void CreateShaders()
@@ -173,6 +233,7 @@ Texture Tex_Brick;
 Texture Tex_Dirt;
 Texture Tex_SciFi;
 Texture Tex_Plain;
+Texture Tex_Petr;
 
 //////////////////// Materials
 Material ShinyMaterial;
@@ -205,6 +266,13 @@ void RenderScene()
 	ShinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 	MeshList[1]->RenderMesh();
 
+	model = glm::mat4(1.0f);
+	model = glm::translate(model, glm::vec3(0.0f, 0.0f, 5.0f));
+	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+	Tex_Petr.UseTexture();
+	ShinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+	MeshList[2]->RenderMesh();
+
 	//////////////////// Xwing
 	model = glm::mat4(1.0f);
 	model = glm::translate(model, glm::vec3(-5.0f, 0.0f, 15.0f));
@@ -227,7 +295,7 @@ void RenderScene()
 	model = glm::rotate(model, -90.f * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
 	model = glm::scale(model, glm::vec3(1, 1, 1)); // ~0.4
 	glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-	//Tex_Dirt.UseTexture();
+	//Tex_Petr.UseTexture();
 	ShinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 	Helicopter.RenderModel();
 }
@@ -344,6 +412,8 @@ int main()
 	Tex_SciFi.LoadTexture(false);
 	Tex_Plain = Texture("Resources/Textures/plain.png");
 	Tex_Plain.LoadTexture(true);
+	Tex_Petr = Texture("Resources/Textures/petr_poroshenko.jpg");
+	Tex_Petr.LoadTexture(false);
 
 	//////////////////// Materials
 	ShinyMaterial = Material(4.0f, 256);
